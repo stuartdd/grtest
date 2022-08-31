@@ -5,8 +5,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
+	"fyne.io/fyne/v2/canvas"
 )
 
 func main() {
@@ -17,17 +16,15 @@ func main() {
 		mainWindow.Close()
 	})
 	mainWindow.SetMaster()
-	mainWindow.SetIcon(resourceLanderPng)
+	mainWindow.SetIcon(GoLogo_Png)
 
-	mainWindow.Resize(fyne.Size{Width: 300, Height: 200})
+	mainWindow.Resize(fyne.Size{Width: 300, Height: 300})
 
-	hello := widget.NewLabel("Hello Fyne!")
-	mainWindow.SetContent(container.NewVBox(
-		hello,
-		widget.NewButton("Hi!", func() {
-			hello.SetText("Welcome :)")
-		}),
-	))
+	image := canvas.NewImageFromResource(Lander_Png)
+	image.FillMode = canvas.ImageFillOriginal
+
+	mainWindow.SetContent(image)
+	image.Move(fyne.Position{X: 150, Y: 150})
 
 	mainWindow.ShowAndRun()
 }
