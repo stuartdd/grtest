@@ -6,6 +6,8 @@
 *.dylib
 
 grtest
+.local*
+gitpush*
 
 # Test binary, built with `go test -c`
 *.test
