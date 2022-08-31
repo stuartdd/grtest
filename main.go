@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -10,6 +12,13 @@ import (
 func main() {
 	a := app.New()
 	mainWindow := a.NewWindow("Hello")
+	mainWindow.SetCloseIntercept(func() {
+		fmt.Println("Closed 0")
+		mainWindow.Close()
+	})
+	mainWindow.SetMaster()
+	mainWindow.SetIcon(resourceGoLogoBluePng)
+
 	mainWindow.Resize(fyne.Size{Width: 300, Height: 200})
 
 	hello := widget.NewLabel("Hello Fyne!")
