@@ -19,7 +19,7 @@ func main() {
 	mainWindow.SetMaster()
 	mainWindow.SetIcon(resourceLanderPng)
 
-	mainWindow.Resize(fyne.Size{Width: 300, Height: 200})
+	mainWindow.Resize(fyne.Size{Width: 300, Height: 300})
 
 	hello := widget.NewLabel("Hello Fyne!")
 	mainWindow.SetContent(container.NewVBox(
