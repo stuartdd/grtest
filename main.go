@@ -17,7 +17,7 @@ func main() {
 		mainWindow.Close()
 	})
 	mainWindow.SetMaster()
-	mainWindow.SetIcon(resourceGoLogoBluePng)
+	mainWindow.SetIcon(resourceLanderPng)
 
 	mainWindow.Resize(fyne.Size{Width: 300, Height: 200})
 
