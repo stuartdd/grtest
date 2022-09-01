@@ -13,6 +13,7 @@ type Movable interface {
 	Init()
 	Update(float32)
 	AdjustSpeed(float32, float32)
+	GetSpeed() (float32, float32)
 	getCanvasObject() fyne.CanvasObject
 }
 
@@ -31,36 +32,46 @@ type ControllerLayout struct {
 	movers []Movable
 }
 
-func NewControllerContainer(width, height float32) *ControllerLayout {
-	return &ControllerLayout{size: fyne.Size{Width: width, Height: height}, movers: make([]Movable, 0)}
-}
-
+/*
+-------------------------------------------------------------------- MoverImage
+*/
 func NewMoverImage(x, y, w, h float32, image *canvas.Image) *MoverImage {
 	return &MoverImage{imageSize: fyne.Size{Width: w, Height: h}, image: image, posx: x, posy: y, speedx: 0, speedy: 0}
 }
 
-func (l *MoverImage) Update(time float32) {
-	px := l.posx + (l.speedx * time)
-	py := l.posy + (l.speedy * time)
-	if (px != l.posx) || (py != l.posy) {
-		l.image.Move(fyne.Position{X: px, Y: py})
-		l.posx = px
-		l.posy = py
+func (mv *MoverImage) Update(time float32) {
+	px := mv.posx + (mv.speedx * time)
+	py := mv.posy + (mv.speedy * time)
+	if (px != mv.posx) || (py != mv.posy) {
+		mv.image.Move(fyne.Position{X: px, Y: py})
+		mv.posx = px
+		mv.posy = py
 	}
 }
 
-func (l *MoverImage) getCanvasObject() fyne.CanvasObject {
-	return l.image
+func (mv *MoverImage) getCanvasObject() fyne.CanvasObject {
+	return mv.image
 }
 
-func (l *MoverImage) Init() {
-	l.image.Resize(l.imageSize)
-	l.image.FillMode = canvas.ImageFillOriginal
+func (mv *MoverImage) Init() {
+	mv.image.Resize(mv.imageSize)
+	mv.image.FillMode = canvas.ImageFillOriginal
 }
 
-func (l *MoverImage) AdjustSpeed(x, y float32) {
-	l.speedx = l.speedx + x
-	l.speedy = l.speedy + y
+func (mv *MoverImage) AdjustSpeed(x, y float32) {
+	mv.speedx = mv.speedx + x
+	mv.speedy = mv.speedy + y
+}
+
+func (mv *MoverImage) GetSpeed() (float32, float32) {
+	return mv.speedx, mv.speedy
+}
+
+/*
+-------------------------------------------------------------------- ControllerLayout
+*/
+func NewControllerContainer(width, height float32) *ControllerLayout {
+	return &ControllerLayout{size: fyne.Size{Width: width, Height: height}, movers: make([]Movable, 0)}
 }
 
 func (l *ControllerLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
@@ -79,8 +90,7 @@ func (l *ControllerLayout) Init() {
 	}
 }
 
-func (l *ControllerLayout) Add(m Movable, container *fyne.Container) {
-	container.Add(m.getCanvasObject())
+func (l *ControllerLayout) Add(m Movable) {
 	l.movers = append(l.movers, m)
 }
 
@@ -88,6 +98,9 @@ func (l *ControllerLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return l.size
 }
 
+/*
+-------------------------------------------------------------------- main
+*/
 func main() {
 	moverImage1 := NewMoverImage(0, 0, 40, 40, canvas.NewImageFromResource(Lander_Png))
 	moverImage1.AdjustSpeed(10, 10)
@@ -104,12 +117,16 @@ func main() {
 
 	controller := NewControllerContainer(500, 500)
 	container := container.New(controller)
-	controller.Add(moverImage1, container)
-	controller.Add(moverImage2, container)
+
+	controller.Add(moverImage1)
+	container.Add(moverImage1.getCanvasObject())
+
+	controller.Add(moverImage2)
+	container.Add(moverImage2.getCanvasObject())
 
 	mainWindow.SetContent(container)
-
 	controller.Init()
+
 	var ft float32 = 0
 	an := fyne.Animation{Duration: time.Duration(time.Second), RepeatCount: 1000000, Curve: fyne.AnimationLinear, Tick: func(f float32) {
 		if f == 1.0 {
