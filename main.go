@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
 	"math"
-	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -15,26 +13,29 @@ import (
 
 type Movable interface {
 	Init()
-	Update(float32)
-	AdjustSpeed(float32, float32)
-	GetSpeed() (float32, float32)
+	Update(float64)
+	AdjustSpeed(float64, float64)
+	GetSpeed() (float64, float64)
 	GetCanvasObject() fyne.CanvasObject
 }
 
 type MoverLines struct {
-	speedx   float32
-	speedy   float32
-	speedRot float32
+	speedx   float64
+	accx     float64
+	speedy   float64
+	accy     float64
+	speedRot float64
+	accRot   float64
 	centerX  float64
 	centerY  float64
 	lines    []*canvas.Line
 }
 
 type MoverImage struct {
-	speedx float32
-	speedy float32
-	posx   float32
-	posy   float32
+	speedx float64
+	speedy float64
+	posx   float64
+	posy   float64
 
 	imageSize fyne.Size
 	image     *canvas.Image
@@ -52,22 +53,38 @@ var _ Movable = (*MoverImage)(nil)
 -------------------------------------------------------------------- MoverLines
 */
 
-func NewMoverLines(centerX, centerY float64, speedRot float32) *MoverLines {
+func NewMoverLines(centerX, centerY, speedRot float64) *MoverLines {
 	return &MoverLines{speedx: 0, speedy: 0, speedRot: speedRot, centerX: centerX, centerY: centerY, lines: make([]*canvas.Line, 0)}
 }
 
-func (mv *MoverLines) Update(time float32) {
-	dx := mv.speedx * time
-	dy := mv.speedy * time
-	ra := mv.speedRot * (time * 10)
+func (mv *MoverLines) Update(time float64) {
+	mv.accx = mv.accx + (mv.speedx * time)
+	var dx int = 0
+	if math.Abs(mv.accx) > 1 {
+		dx = int(mv.accx)
+		mv.accx = mv.accx - float64(dx)
+	}
+	mv.accy = mv.accy + (mv.speedy * time)
+	var dy int = 0
+	if math.Abs(mv.accy) > 1 {
+		dy = int(mv.accy)
+		mv.accy = mv.accy - float64(dy)
+	}
+	mv.accRot = mv.accRot + (mv.speedRot * float64(time))
+	var ra int = 0
+	if math.Abs(mv.accRot) > 1 {
+		ra = int(mv.accRot)
+		mv.accRot = mv.accRot - float64(ra)
+	}
+
 	for _, l := range mv.lines {
 		if dx != 0 {
-			l.Position1.X = l.Position1.X + dx
-			l.Position2.X = l.Position2.X + dx
+			l.Position1.X = l.Position1.X + float32(dx)
+			l.Position2.X = l.Position2.X + float32(dx)
 		}
 		if dy != 0 {
-			l.Position1.Y = l.Position1.Y + dy
-			l.Position2.Y = l.Position2.Y + dy
+			l.Position1.Y = l.Position1.Y + float32(dy)
+			l.Position2.Y = l.Position2.Y + float32(dy)
 		}
 		if ra != 0 {
 			rotatePoint(mv.centerX, mv.centerY, &l.Position1, ra)
@@ -89,12 +106,12 @@ func (mv *MoverLines) GetCanvasObject() fyne.CanvasObject {
 func (mv *MoverLines) Init() {
 }
 
-func (mv *MoverLines) AdjustSpeed(x, y float32) {
+func (mv *MoverLines) AdjustSpeed(x, y float64) {
 	mv.speedx = mv.speedx + x
 	mv.speedy = mv.speedy + y
 }
 
-func (mv *MoverLines) GetSpeed() (float32, float32) {
+func (mv *MoverLines) GetSpeed() (float64, float64) {
 	return mv.speedx, mv.speedy
 }
 
@@ -124,28 +141,20 @@ func (mv *MoverLines) AddLineToo(x2, y2 float32, colour color.Color) {
 	mv.lines = append(mv.lines, line)
 }
 
-func rotatePoint(centerX, centerY float64, point *fyne.Position, radians float32) {
-	angle := int(radians * (180 / math.Pi))
-	px := float64(point.X) - centerX
-	py := float64(point.Y) - centerY
-	point.X = float32(cos(angle)*px - sin(angle)*py + centerX)
-	point.Y = float32(sin(angle)*px + cos(angle)*py + centerY)
-}
-
 /*
 -------------------------------------------------------------------- MoverImage
 */
-func NewMoverImage(x, y, w, h float32, image *canvas.Image) *MoverImage {
-	return &MoverImage{imageSize: fyne.Size{Width: w, Height: h}, image: image, posx: x, posy: y, speedx: 0, speedy: 0}
+func NewMoverImage(x, y, w, h float64, image *canvas.Image) *MoverImage {
+	return &MoverImage{imageSize: fyne.Size{Width: float32(w), Height: float32(h)}, image: image, posx: x, posy: y, speedx: 0, speedy: 0}
 }
 
-func (mv *MoverImage) Update(time float32) {
+func (mv *MoverImage) Update(time float64) {
 	dx := mv.speedx * time
 	dy := mv.speedy * time
 	if (dx != 0) || (dy != 0) {
 		mv.posx = mv.posx + dx
 		mv.posy = mv.posy + dy
-		mv.image.Move(fyne.Position{X: mv.posx, Y: mv.posy})
+		mv.image.Move(fyne.Position{X: float32(mv.posx), Y: float32(mv.posy)})
 	}
 }
 
@@ -158,12 +167,12 @@ func (mv *MoverImage) Init() {
 	mv.image.FillMode = canvas.ImageFillOriginal
 }
 
-func (mv *MoverImage) AdjustSpeed(x, y float32) {
+func (mv *MoverImage) AdjustSpeed(x, y float64) {
 	mv.speedx = mv.speedx + x
 	mv.speedy = mv.speedy + y
 }
 
-func (mv *MoverImage) GetSpeed() (float32, float32) {
+func (mv *MoverImage) GetSpeed() (float64, float64) {
 	return mv.speedx, mv.speedy
 }
 
@@ -178,7 +187,7 @@ func (l *ControllerLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	l.size = size
 }
 
-func (l *ControllerLayout) Update(time float32) {
+func (l *ControllerLayout) Update(time float64) {
 	for _, m := range l.movers {
 		m.Update(time)
 	}
@@ -210,13 +219,18 @@ func main() {
 	moverImage2 := NewMoverImage(0, 0, 20, 20, canvas.NewImageFromResource(Lander_Png))
 	moverImage2.AdjustSpeed(5, 5)
 
-	lines1 := NewMoverLines(150, 150, 0.01)
+	lines1 := NewMoverLines(150, 150, -1.7)
 	lines1.AddLine(100, 100, 150, 150, color.White)
 	lines1.AddLineToo(200, 100, color.White)
 	lines1.AdjustSpeed(5, 5)
 
-	lines2 := NewMoverLines(0, 0, 0)
-	lines2.AddLineToo(400, 400, color.White)
+	lines2 := NewMoverLines(150, 150, 1.7)
+	lines2.AddLine(100, 100, 150, 150, color.White)
+	lines2.AddLineToo(200, 100, color.White)
+	lines2.AdjustSpeed(5, 5)
+
+	lines3 := NewMoverLines(0, 0, 0)
+	lines3.AddLineToo(400, 400, color.White)
 
 	a := app.New()
 	mainWindow := a.NewWindow("Hello")
@@ -239,13 +253,15 @@ func main() {
 	container.Add(lines1.GetCanvasObject())
 	controller.Add(lines2)
 	container.Add(lines2.GetCanvasObject())
+	controller.Add(lines3)
+	container.Add(lines3.GetCanvasObject())
 
 	mainWindow.SetContent(container)
 	controller.Init()
 
 	var ft float32 = 0
 	an := fyne.Animation{Duration: time.Duration(time.Second), RepeatCount: 1000000, Curve: fyne.AnimationLinear, Tick: func(f float32) {
-		controller.Update(f - ft)
+		controller.Update(float64(f - ft))
 		if f == 1.0 {
 			ft = 0
 		} else {
@@ -256,110 +272,4 @@ func main() {
 	an.Start()
 	mainWindow.ShowAndRun()
 	an.Stop()
-}
-
-var SIN_COS_TABLE = []float64{0.000000000000, 0.017452406437, 0.034899496703, 0.052335956243, 0.069756473744, 0.087155742748, 0.104528463268, 0.121869343405, 0.139173100960, 0.156434465040, 0.173648177667, 0.190808995377, 0.207911690818, 0.224951054344, 0.241921895600, 0.258819045103, 0.275637355817, 0.292371704723, 0.309016994375, 0.325568154457, 0.342020143326, 0.358367949545, 0.374606593416, 0.390731128489, 0.406736643076, 0.422618261741, 0.438371146789, 0.453990499740, 0.469471562786, 0.484809620246, 0.500000000000, 0.515038074910, 0.529919264233, 0.544639035015, 0.559192903471, 0.573576436351, 0.587785252292, 0.601815023152, 0.615661475326, 0.629320391050, 0.642787609687, 0.656059028991, 0.669130606359, 0.681998360062, 0.694658370459, 0.707106781187, 0.719339800339, 0.731353701619, 0.743144825477, 0.754709580223, 0.766044443119, 0.777145961457, 0.788010753607, 0.798635510047, 0.809016994375, 0.819152044289, 0.829037572555, 0.838670567945, 0.848048096156, 0.857167300702, 0.866025403784, 0.874619707139, 0.882947592859, 0.891006524188, 0.898794046299, 0.906307787037, 0.913545457643, 0.920504853452, 0.927183854567, 0.933580426497, 0.939692620786, 0.945518575599, 0.951056516295, 0.956304755963, 0.961261695938, 0.965925826289, 0.970295726276, 0.974370064785, 0.978147600734, 0.981627183448, 0.984807753012, 0.987688340595, 0.990268068742, 0.992546151641, 0.994521895368, 0.996194698092, 0.997564050260, 0.998629534755, 0.999390827019, 0.999847695156, 1.000000000000, 0.999847695156, 0.999390827019, 0.998629534755, 0.997564050260, 0.996194698092, 0.994521895368, 0.992546151641, 0.990268068742, 0.987688340595, 0.984807753012, 0.981627183448, 0.978147600734, 0.974370064785, 0.970295726276, 0.965925826289, 0.961261695938, 0.956304755963, 0.951056516295, 0.945518575599, 0.939692620786, 0.933580426497, 0.927183854567, 0.920504853452, 0.913545457643, 0.906307787037, 0.898794046299, 0.891006524188, 0.882947592859, 0.874619707139, 0.866025403784, 0.857167300702, 0.848048096156, 0.838670567945, 0.829037572555, 0.819152044289, 0.809016994375, 0.798635510047, 0.788010753607, 0.777145961457, 0.766044443119, 0.754709580223, 0.743144825477, 0.731353701619, 0.719339800339, 0.707106781187, 0.694658370459, 0.681998360062, 0.669130606359, 0.656059028991, 0.642787609687, 0.629320391050, 0.615661475326, 0.601815023152, 0.587785252292, 0.573576436351, 0.559192903471, 0.544639035015, 0.529919264233, 0.515038074910, 0.500000000000, 0.484809620246, 0.469471562786, 0.453990499740, 0.438371146789, 0.422618261741, 0.406736643076, 0.390731128489, 0.374606593416, 0.358367949545, 0.342020143326, 0.325568154457, 0.309016994375, 0.292371704723, 0.275637355817, 0.258819045103, 0.241921895600, 0.224951054344, 0.207911690818, 0.190808995377, 0.173648177667, 0.156434465040, 0.139173100960, 0.121869343405, 0.104528463268, 0.087155742748, 0.069756473744, 0.052335956243, 0.034899496703, 0.017452406437}
-
-func testSine() {
-
-	fmt.Println(len(SIN_COS_TABLE))
-
-	var sb1 strings.Builder
-	var sb2 strings.Builder
-
-	for i := 0; i < 360; i++ {
-		ra := float64(i) * (math.Pi / 180)
-		co := math.Sin(ra)
-		so := fmt.Sprintf("%0.12f, ", co)
-		if strings.HasPrefix(so, "-0.000000000000") {
-			so = so[1:]
-		}
-		sb1.WriteString(so)
-	}
-	fmt.Println(sb1.String())
-	fmt.Println("------------------------")
-	for i := 0; i < 360; i++ {
-		co := sin(i)
-		so := fmt.Sprintf("%0.12f, ", co)
-		if strings.HasPrefix(so, "-0.000000000000") {
-			so = so[1:]
-		}
-		sb2.WriteString(so)
-	}
-	fmt.Println(sb2.String())
-	fmt.Println("------------------------")
-
-	b1 := []byte(sb1.String())
-	b2 := []byte(sb2.String())
-	if len(b1) != len(b2) {
-		fmt.Printf("Len 1 %d. Len 2 %d", len(b1), len(b2))
-	}
-	var sb3 strings.Builder
-	for i := 0; i < len(b1); i++ {
-		sb3.WriteByte(b1[i])
-		if b1[i] != b2[i] {
-			fmt.Printf("Char at b1[%d]=%c b2[%d]=%c\n%s", i, b1[i], i, b2[i], sb3.String())
-			break
-		}
-	}
-}
-
-func testCos() {
-
-	fmt.Println(len(SIN_COS_TABLE))
-
-	var sb1 strings.Builder
-	var sb2 strings.Builder
-
-	for i := 0; i < 360; i++ {
-		ra := float64(i) * (math.Pi / 180)
-		co := math.Cos(ra)
-		so := fmt.Sprintf("%0.12f, ", co)
-		if strings.HasPrefix(so, "-0.000000000000") {
-			so = so[1:]
-		}
-		sb1.WriteString(so)
-	}
-	fmt.Println(sb1.String())
-	fmt.Println("------------------------")
-	for i := 0; i < 360; i++ {
-		co := cos(i)
-		so := fmt.Sprintf("%0.12f, ", co)
-		if strings.HasPrefix(so, "-0.000000000000") {
-			so = so[1:]
-		}
-		sb2.WriteString(so)
-	}
-	fmt.Println(sb2.String())
-	fmt.Println("------------------------")
-
-	b1 := []byte(sb1.String())
-	b2 := []byte(sb2.String())
-	if len(b1) != len(b2) {
-		fmt.Printf("Len 1 %d. Len 2 %d", len(b1), len(b2))
-	}
-	var sb3 strings.Builder
-	for i := 0; i < len(b1); i++ {
-		sb3.WriteByte(b1[i])
-		if b1[i] != b2[i] {
-			fmt.Printf("Char at b1[%d]=%c b2[%d]=%c\n%s", i, b1[i], i, b2[i], sb3.String())
-			break
-		}
-	}
-}
-
-func sin(deg int) float64 {
-	deg = deg % 360
-	if deg >= 180 {
-		return SIN_COS_TABLE[deg%180] * -1
-	}
-	return SIN_COS_TABLE[deg]
-}
-
-func cos(deg int) float64 {
-	deg = (deg + 90) % 360
-	if deg >= 180 {
-		return SIN_COS_TABLE[deg%180] * -1
-	}
-	return SIN_COS_TABLE[deg]
 }
