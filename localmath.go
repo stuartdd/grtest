@@ -1,6 +1,15 @@
 package main
 
-import "fyne.io/fyne/v2"
+import (
+	"math"
+
+	"fyne.io/fyne/v2"
+)
+
+const (
+	maxFloat32 float32 = math.MaxFloat32
+	minFloat32 float32 = -math.MaxFloat32
+)
 
 /*
 180 values generated via the test function TestSinFunction. Copy the first 180 entries (ONLY positive values) from the console output into this array
@@ -15,6 +24,15 @@ func rotatePoint(centerX, centerY float64, point *fyne.Position, angle int) {
 	dy := float64(point.Y) - centerY
 	point.X = float32(cos(angle)*dx - sin(angle)*dy + centerX) // Rotate using fast sine values
 	point.Y = float32(sin(angle)*dx + cos(angle)*dy + centerY)
+}
+
+func scalePoint(centerX, centerY float64, point *fyne.Position, scaleX, scaleY float64) {
+	dx := float64(point.X) - centerX // Cal deltas
+	dy := float64(point.Y) - centerY
+	dx = scaleX * dx
+	dy = scaleY * dy
+	point.X = float32(centerX + dx)
+	point.Y = float32(centerY + dy)
 }
 
 func sin(deg int) float64 {

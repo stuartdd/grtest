@@ -6,7 +6,96 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"fyne.io/fyne/v2"
 )
+
+func TestScale(t *testing.T) {
+	var sb strings.Builder
+	pos := &fyne.Position{X: 100, Y: 0}
+	scalePoint(0, 0, pos, 0.5, 0.5)
+	sb.WriteString(testPos(t, 1, 50.0, 0, pos))
+	scalePoint(0, 0, pos, 100/50, 0)
+	sb.WriteString(testPos(t, 2, 100.0, 0, pos))
+
+	pos = &fyne.Position{X: 50, Y: 50}
+	scalePoint(100, 100, pos, 0.5, 0.5)
+	sb.WriteString(testPos(t, 3, 75.0, 75.0, pos))
+	scalePoint(100, 100, pos, 50/25, 50/25)
+	sb.WriteString(testPos(t, 4, 50.0, 50.0, pos))
+	t.Error(sb.String())
+}
+
+func TestRotate(t *testing.T) {
+	var sb strings.Builder
+	pos := &fyne.Position{X: 100, Y: 0}
+	sb.WriteString(testPos(t, 1, 100.0, 0, pos))
+	rotatePoint(0, 0, pos, 90)
+	sb.WriteString(testPos(t, 2, 0.0, 100, pos))
+	rotatePoint(0, 0, pos, -90)
+	sb.WriteString(testPos(t, 3, 100.0, 0, pos))
+	rotatePoint(0, 0, pos, -90)
+	sb.WriteString(testPos(t, 4, 0.0, -100, pos))
+	rotatePoint(0, 0, pos, 45)
+	rotatePoint(0, 0, pos, 45)
+	sb.WriteString(testPos(t, 5, 100.0, 0, pos))
+	for i := 0; i < 90; i++ {
+		rotatePoint(0, 0, pos, 1)
+	}
+	sb.WriteString(testPos(t, 6, 0.0, 100, pos))
+	for i := 0; i < 90; i++ {
+		rotatePoint(0, 0, pos, 1)
+	}
+	sb.WriteString(testPos(t, 7, -100.0, 0, pos))
+	for i := 0; i < 90; i++ {
+		rotatePoint(0, 0, pos, 1)
+	}
+	sb.WriteString(testPos(t, 8, 0, -100, pos))
+	for i := 0; i < 90; i++ {
+		rotatePoint(0, 0, pos, 1)
+	}
+	sb.WriteString(testPos(t, 9, 100, 0, pos))
+	pos = &fyne.Position{X: 100, Y: 0}
+	sb.WriteString(testPos(t, 1, 100.0, 0, pos))
+	for i := 0; i < 180; i++ {
+		rotatePoint(0, 0, pos, -1)
+	}
+	sb.WriteString(testPos(t, 10, -100.0, 0, pos))
+	for i := 0; i < 180; i++ {
+		rotatePoint(0, 0, pos, -1)
+	}
+	sb.WriteString(testPos(t, 11, 100.0, 0, pos))
+
+	fmt.Println(sb.String())
+}
+
+func testPos(t *testing.T, id int, x, y float64, p *fyne.Position) string {
+	var sb strings.Builder
+	spX := fmt.Sprintf("%.2f", p.X)
+	if spX == "-0.00" {
+		spX = spX[1:]
+	}
+	sX := fmt.Sprintf("%.2f", x)
+	spY := fmt.Sprintf("%.2f", p.Y)
+	if spY == "-0.00" {
+		spY = spY[1:]
+	}
+	sY := fmt.Sprintf("%.2f", y)
+	if spX != sX {
+		s := fmt.Sprintf("\n%d) Error in X value X:%s != %s Y:%s", id, spX, sX, spY)
+		sb.WriteString(s)
+		t.Errorf(s)
+	}
+	if spY != sY {
+		s := fmt.Sprintf("\n%d) Error in Y value X:%s Y:%s != %s", id, spX, spY, sY)
+		sb.WriteString(s)
+		t.Errorf(s)
+	}
+	if len(sb.String()) == 0 {
+		sb.WriteString(fmt.Sprintf("\n%d) X:%s (%s) Y:%s (%s)", id, spX, sX, spY, sY))
+	}
+	return sb.String()
+}
 
 func TestSpeedSin(t *testing.T) {
 	// Warm up the test.
