@@ -14,7 +14,9 @@ import (
 type Movable interface {
 	Init()
 	Update(float64)
-	AdjustSpeed(float64, float64)
+	SetPosition(float64, float64)
+	GetPosition() (float64, float64)
+	SetSpeed(float64, float64)
 	GetSpeed() (float64, float64)
 	GetCanvasObject() fyne.CanvasObject
 }
@@ -106,16 +108,33 @@ func (mv *MoverLines) GetCanvasObject() fyne.CanvasObject {
 func (mv *MoverLines) Init() {
 }
 
-func (mv *MoverLines) AdjustSpeed(x, y float64) {
-	mv.speedx = mv.speedx + x
-	mv.speedy = mv.speedy + y
+func (mv *MoverLines) SetSpeed(x, y float64) {
+	mv.speedx = x
+	mv.speedy = y
+}
+
+func (mv *MoverLines) SetPosition(x, y float64) {
+	dx := x - mv.centerX
+	dy := y - mv.centerY
+	for _, l := range mv.lines {
+		l.Position1.X = l.Position1.X + float32(dx)
+		l.Position2.X = l.Position2.X + float32(dx)
+		l.Position1.Y = l.Position1.Y + float32(dy)
+		l.Position2.Y = l.Position2.Y + float32(dy)
+	}
+	mv.centerX = x
+	mv.centerY = y
+}
+
+func (mv *MoverLines) GetPosition() (float64, float64) {
+	return mv.centerX, mv.centerY
 }
 
 func (mv *MoverLines) GetSpeed() (float64, float64) {
 	return mv.speedx, mv.speedy
 }
 
-func (mv *MoverLines) AddLine(x1, y1, x2, y2 float32, colour color.Color) {
+func (mv *MoverLines) AddLine(colour color.Color, x1, y1, x2, y2 float32) {
 	line := canvas.NewLine(colour)
 	line.Position1.X = x1
 	line.Position1.Y = y1
@@ -123,8 +142,13 @@ func (mv *MoverLines) AddLine(x1, y1, x2, y2 float32, colour color.Color) {
 	line.Position2.Y = y2
 	mv.lines = append(mv.lines, line)
 }
+func (mv *MoverLines) AddLines(colour color.Color, xy ...float32) {
+	for i := 0; i < len(xy); i = i + 2 {
+		mv.AddLineToo(colour, xy[i], xy[i+1])
+	}
+}
 
-func (mv *MoverLines) AddLineToo(x2, y2 float32, colour color.Color) {
+func (mv *MoverLines) AddLineToo(colour color.Color, x2, y2 float32) {
 	line := canvas.NewLine(colour)
 	var x1 float32 = 0.0
 	var y1 float32 = 0.0
@@ -167,9 +191,19 @@ func (mv *MoverImage) Init() {
 	mv.image.FillMode = canvas.ImageFillOriginal
 }
 
-func (mv *MoverImage) AdjustSpeed(x, y float64) {
-	mv.speedx = mv.speedx + x
-	mv.speedy = mv.speedy + y
+func (mv *MoverImage) SetPosition(x, y float64) {
+	mv.posx = x
+	mv.posy = y
+	mv.image.Move(fyne.Position{X: float32(mv.posx), Y: float32(mv.posy)})
+}
+
+func (mv *MoverImage) SetSpeed(x, y float64) {
+	mv.speedx = x
+	mv.speedy = y
+}
+
+func (mv *MoverImage) GetPosition() (float64, float64) {
+	return float64(mv.image.Position().X), float64(mv.image.Position().Y)
 }
 
 func (mv *MoverImage) GetSpeed() (float64, float64) {
@@ -215,22 +249,23 @@ func main() {
 	// testSine()
 	// os.Exit(0)
 	moverImage1 := NewMoverImage(0, 0, 40, 40, canvas.NewImageFromResource(Lander_Png))
-	moverImage1.AdjustSpeed(100, 100)
+	moverImage1.SetSpeed(100, 100)
+	moverImage1.SetPosition(100, 0)
 	moverImage2 := NewMoverImage(0, 0, 20, 20, canvas.NewImageFromResource(Lander_Png))
-	moverImage2.AdjustSpeed(5, 5)
+	moverImage2.SetSpeed(5, 5)
 
-	lines1 := NewMoverLines(150, 150, -1.7)
-	lines1.AddLine(100, 100, 150, 150, color.White)
-	lines1.AddLineToo(200, 100, color.White)
-	lines1.AdjustSpeed(5, 5)
+	lines1 := NewMoverLines(150, 150, -9)
+	lines1.AddLine(color.White, 100, 100, 150, 150)
+	lines1.AddLineToo(color.White, 200, 100)
+	lines1.SetSpeed(5, 5)
 
-	lines2 := NewMoverLines(150, 150, 1.7)
-	lines2.AddLine(100, 100, 150, 150, color.White)
-	lines2.AddLineToo(200, 100, color.White)
-	lines2.AdjustSpeed(5, 5)
+	lines2 := NewMoverLines(50, 50, 20)
+	lines2.AddLines(color.White, 0, 0, 100, 0, 100, 100, 0, 100, 0, 0)
+	lines2.SetSpeed(5, 5)
+	lines2.SetPosition(100, 50)
 
 	lines3 := NewMoverLines(0, 0, 0)
-	lines3.AddLineToo(400, 400, color.White)
+	lines3.AddLineToo(color.White, 400, 400)
 
 	a := app.New()
 	mainWindow := a.NewWindow("Hello")
