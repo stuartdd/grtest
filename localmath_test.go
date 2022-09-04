@@ -10,6 +10,35 @@ import (
 	"fyne.io/fyne/v2"
 )
 
+func TestAngles(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString(testAngle(t, 1, 100, 100, 200, 200, 45))
+	sb.WriteString(testAngle(t, 2, 100, 100, 150, 200, 63))
+	sb.WriteString(testAngle(t, 3, 100, 100, 100, 200, 90))
+	sb.WriteString(testAngle(t, 4, 100, 100, 50, 200, 117))
+	sb.WriteString(testAngle(t, 5, 100, 100, 0, 150, 154))
+	sb.WriteString(testAngle(t, 6, 100, 100, 0, 100, 180))
+	sb.WriteString(testAngle(t, 7, 100, 100, 0, 50, 206))
+	sb.WriteString(testAngle(t, 8, 100, 100, 0, 0, 225))
+	sb.WriteString(testAngle(t, 9, 100, 100, 50, 0, 243))
+	sb.WriteString(testAngle(t, 10, 100, 100, 100, 0, 270))
+	sb.WriteString(testAngle(t, 11, 100, 100, 150, 0, 297))
+	sb.WriteString(testAngle(t, 12, 100, 100, 200, 0, 315))
+	sb.WriteString(testAngle(t, 13, 100, 100, 200, 50, 334))
+	sb.WriteString(testAngle(t, 14, 100, 100, 200, 100, 0))
+	fmt.Println(sb.String())
+}
+
+func testAngle(t *testing.T, id int, fx, fy, tx, ty float64, d int) string {
+	a := degreesFromCords(fx, fy, tx, ty)
+	if a != d {
+		s := fmt.Sprintf("\n%d) *** Error *** Conversion: expected %d actual %d co-ords(fx %f, fy %f, tx %f, ty %f)", id, d, a, fx, fy, tx, ty)
+		t.Errorf(s)
+		return s
+	}
+	return fmt.Sprintf("\n%d) OK: Conversion: co-ords(fx %f, fy %f, tx %f, ty %f) returned %d", id, fx, fy, tx, ty, a)
+}
+
 func TestScale(t *testing.T) {
 	var sb strings.Builder
 	pos := &fyne.Position{X: 100, Y: 0}
@@ -23,7 +52,7 @@ func TestScale(t *testing.T) {
 	sb.WriteString(testPos(t, 3, 75.0, 75.0, pos))
 	scalePoint(100, 100, pos, 50/25, 50/25)
 	sb.WriteString(testPos(t, 4, 50.0, 50.0, pos))
-	t.Error(sb.String())
+	fmt.Println(sb.String())
 }
 
 func TestRotate(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 const (
 	maxFloat32 float32 = math.MaxFloat32
 	minFloat32 float32 = -math.MaxFloat32
+	radToDeg   float64 = (180 / math.Pi)
 )
 
 /*
@@ -24,6 +25,44 @@ func rotatePoint(centerX, centerY float64, point *fyne.Position, angle int) {
 	dy := float64(point.Y) - centerY
 	point.X = float32(cos(angle)*dx - sin(angle)*dy + centerX) // Rotate using fast sine values
 	point.Y = float32(sin(angle)*dx + cos(angle)*dy + centerY)
+}
+
+func scaleMovable(mov Movable, scale float64) {
+	sc := mov.GetSizeAndCenter()
+	w := sc.Width * float32(scale)
+	h := sc.Height * float32(scale)
+	if w < 1 || h < 1 || h > 10000 || w > 10000 {
+		return
+	}
+	mov.SetSize(fyne.Size{Width: w, Height: h})
+}
+
+func SetSpeedAndDirection(mov Movable, speed float64, angle int) {
+	dx := speed * cos(angle)
+	dy := speed * sin(angle)
+	mov.SetSpeed(dx, dy)
+}
+
+func SetSpeedAndTarget(mov, target Movable, speed float64) {
+	x, y := target.GetCenter()
+	SetSpeedAndTargetPosition(mov, speed, x, y)
+}
+
+func SetSpeedAndTargetPosition(mov Movable, speed, x, y float64) {
+	xp, yp := mov.GetCenter()
+	SetSpeedAndDirection(mov, speed, degreesFromCords(xp, yp, x, y))
+}
+
+func degreesFromCords(fx, fy, tx, ty float64) int {
+	dx := tx - fx
+	dy := ty - fy
+	if dx < 0 {
+		return int(math.Atan(dy/dx)*radToDeg) + 180
+	}
+	if dy < 0 {
+		return int(math.Atan(dy/dx)*radToDeg) + 360
+	}
+	return int(math.Atan(dy/dx) * radToDeg)
 }
 
 func scalePoint(centerX, centerY float64, point *fyne.Position, scaleX, scaleY float64) {
