@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 	"time"
@@ -81,7 +82,7 @@ var _ Movable = (*MoverImage)(nil)
 var _ Movable = (*MoverCircle)(nil)
 
 /*
--------------------------------------------------------------------- SizeAndCenter
+-------------------------------------------------------------------- SizeAndCenter + Bounds
 */
 func NewSizeAndCenter(w, h, x, y float64) *SizeAndCenter {
 	return &SizeAndCenter{Width: w, Height: h, CenterX: x, CenterY: y}
@@ -93,6 +94,36 @@ func (sc *SizeAndCenter) Size() fyne.Size {
 
 func (sc *SizeAndCenter) Center() fyne.Position {
 	return fyne.Position{X: float32(sc.CenterX), Y: float32(sc.CenterY)}
+}
+
+func (bb *SizeAndCenter) String() string {
+	return fmt.Sprintf("SizeAndCenter w:%.3f h:%.3f x:%.3f y:%.3f", bb.Width, bb.Height, bb.CenterX, bb.CenterY)
+}
+
+func NewBounds(x1, y1, x2, y2 float64) *Bounds {
+	return &Bounds{x1: x1, y1: y1, x2: x2, y2: y2}
+}
+func (bb *Bounds) Inside(x, y float64) bool {
+	/*
+		Using && is faster as only 1 expressions (may) need to be evaluated to return false
+		Using || ALL expressions need to be evaluated
+	*/
+	if x >= bb.x1 && x <= bb.x2 && y >= bb.y1 && y <= bb.y2 {
+		return true
+	}
+	return false
+}
+
+func (bb *Bounds) Size() fyne.Size {
+	return fyne.Size{Height: float32(bb.y2 - bb.y1), Width: float32(bb.x2 - bb.x1)}
+}
+
+func (bb *Bounds) Center() fyne.Position {
+	return fyne.Position{X: float32(bb.x1 + (bb.x2-bb.x1)/2), Y: float32(bb.y1 + (bb.y2-bb.y1)/2)}
+}
+
+func (bb *Bounds) String() string {
+	return fmt.Sprintf("Bounds x1:%.3f y1:%.3f x2:%.3f y2:%.3f", bb.x1, bb.y1, bb.x2, bb.y2)
 }
 
 /*
@@ -458,6 +489,7 @@ func main() {
 
 	bBox1 := NewMoverRect(color.RGBA{250, 0, 0, 255}, 200, 200, 100, 100, 0)
 	bBox2 := NewMoverRect(color.RGBA{0, 0, 255, 255}, 200, 200, 100, 100, 0)
+	bBox3 := NewMoverRect(color.RGBA{0, 255, 0, 255}, 200, 200, 100, 100, 0)
 
 	lines3 := NewMoverLines(0, 0, 0)
 	lines3.AddLineToo(color.White, 1000, 1000)
@@ -486,6 +518,7 @@ func main() {
 
 	container.Add(bBox1.GetCanvasObject())
 	container.Add(bBox2.GetCanvasObject())
+	container.Add(bBox3.GetCanvasObject())
 
 	mainWindow.SetContent(container)
 	controller.Init()
@@ -499,14 +532,17 @@ func main() {
 	}()
 	go func() {
 		for {
-			time.Sleep(time.Millisecond * 100)
-			s := lines1.GetSizeAndCenter()
+			time.Sleep(time.Millisecond * 300)
+			s := lines1.GetBounds()
 			bBox1.SetSize(s.Size())
-			bBox1.SetCenter(float64(s.CenterX), float64(s.CenterY))
-			s = moverImage2.GetSizeAndCenter()
-			bBox2.SetSize(s.Size())
-			bBox2.SetCenter(float64(s.CenterX), float64(s.CenterY))
-			scaleMovable(circ1, 0.998)
+			bBox1.SetCenter(float64(s.Center().X), float64(s.Center().Y))
+			b := circ1.GetBounds()
+			bBox2.SetSize(b.Size())
+			bBox2.SetCenter(float64(b.Center().X), float64(b.Center().Y))
+			i := moverImage2.GetBounds()
+			fmt.Println(i)
+			bBox3.SetSize(i.Size())
+			bBox3.SetCenter(float64(i.Center().X), float64(i.Center().Y))
 		}
 	}()
 	mainWindow.ShowAndRun()
