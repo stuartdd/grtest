@@ -20,14 +20,22 @@ type Movable interface {
 	GetSpeed() (float64, float64)
 	GetCanvasObject() fyne.CanvasObject
 	GetSizeAndCenter() *SizeAndCenter
+	GetBounds() *Bounds
 	SetSize(fyne.Size)
 }
 
 type SizeAndCenter struct {
-	Width   float32
-	Height  float32
-	CenterX float32
-	CenterY float32
+	Width   float64
+	Height  float64
+	CenterX float64
+	CenterY float64
+}
+
+type Bounds struct {
+	x1 float64
+	y1 float64
+	x2 float64
+	y2 float64
 }
 
 type MoverCircle struct {
@@ -75,16 +83,16 @@ var _ Movable = (*MoverCircle)(nil)
 /*
 -------------------------------------------------------------------- SizeAndCenter
 */
-func NewSizeAndCenter(w, h, x, y float32) *SizeAndCenter {
+func NewSizeAndCenter(w, h, x, y float64) *SizeAndCenter {
 	return &SizeAndCenter{Width: w, Height: h, CenterX: x, CenterY: y}
 }
 
 func (sc *SizeAndCenter) Size() fyne.Size {
-	return fyne.Size{Height: sc.Height, Width: sc.Width}
+	return fyne.Size{Height: float32(sc.Height), Width: float32(sc.Width)}
 }
 
 func (sc *SizeAndCenter) Center() fyne.Position {
-	return fyne.Position{X: sc.CenterX, Y: sc.CenterY}
+	return fyne.Position{X: float32(sc.CenterX), Y: float32(sc.CenterY)}
 }
 
 /*
@@ -117,7 +125,13 @@ func (mv *MoverCircle) GetCanvasObject() fyne.CanvasObject {
 }
 
 func (mv *MoverCircle) GetSizeAndCenter() *SizeAndCenter {
-	return NewSizeAndCenter(float32(mv.width), float32(mv.height), float32(mv.centerx), float32(mv.centery))
+	return NewSizeAndCenter(mv.width, mv.height, mv.centerx, mv.centery)
+}
+
+func (mv *MoverCircle) GetBounds() *Bounds {
+	w2 := float64(mv.width / 2)
+	h2 := float64(mv.height / 2)
+	return &Bounds{x1: mv.centerx - w2, x2: mv.centerx + w2, y1: mv.centery - h2, y2: mv.centery + h2}
 }
 
 func (mv *MoverCircle) SetSize(size fyne.Size) {
@@ -232,8 +246,8 @@ func (mv *MoverLines) GetAngle() int {
 
 func (mv *MoverLines) SetSize(size fyne.Size) {
 	currentSize := mv.GetSizeAndCenter()
-	scaleX := float64(size.Width / currentSize.Width)
-	scaleY := float64(size.Height / currentSize.Height)
+	scaleX := float64(size.Width) / currentSize.Width
+	scaleY := float64(size.Height) / currentSize.Height
 	for _, l := range mv.lines {
 		scalePoint(mv.centerx, mv.centery, &l.Position1, scaleX, scaleY)
 		scalePoint(mv.centerx, mv.centery, &l.Position2, scaleX, scaleY)
@@ -274,9 +288,16 @@ func (mv *MoverLines) GetSizeAndCenter() *SizeAndCenter {
 			miny = p2.Y
 		}
 	}
-	w := maxx - minx
-	h := maxy - miny
-	return NewSizeAndCenter(w, h, (minx + w/2), (miny + h/2))
+	w := float64(maxx - minx)
+	h := float64(maxy - miny)
+	return NewSizeAndCenter(w, h, (float64(minx) + w/2), (float64(miny) + h/2))
+}
+
+func (mv *MoverLines) GetBounds() *Bounds {
+	sac := mv.GetSizeAndCenter()
+	w2 := sac.Width / 2
+	h2 := sac.Height / 2
+	return &Bounds{x1: sac.CenterX - w2, x2: sac.CenterX + w2, y1: sac.CenterY - h2, y2: sac.CenterY + h2}
 }
 
 func (mv *MoverLines) Init() {
@@ -352,7 +373,13 @@ func (mv *MoverImage) GetCanvasObject() fyne.CanvasObject {
 }
 
 func (mv *MoverImage) GetSizeAndCenter() *SizeAndCenter {
-	return NewSizeAndCenter(mv.imageSize.Width, mv.imageSize.Height, float32(mv.centerx), float32(mv.centery))
+	return NewSizeAndCenter(float64(mv.imageSize.Width), float64(mv.imageSize.Height), mv.centerx, mv.centery)
+}
+
+func (mv *MoverImage) GetBounds() *Bounds {
+	w2 := float64(mv.imageSize.Width / 2)
+	h2 := float64(mv.imageSize.Height / 2)
+	return &Bounds{x1: mv.centerx - w2, x2: mv.centerx + w2, y1: mv.centery - h2, y2: mv.centery + h2}
 }
 
 func (mv *MoverImage) SetSize(size fyne.Size) {
