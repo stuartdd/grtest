@@ -210,8 +210,8 @@ func (mv *MoverLines) Update(time float64) {
 			l.Position2.Y = l.Position2.Y + float32(dy)
 		}
 		if ra != 0 {
-			rotatePoint(mv.centerx, mv.centery, &l.Position1, ra)
-			rotatePoint(mv.centerx, mv.centery, &l.Position2, ra)
+			rotatePosition(mv.centerx, mv.centery, &l.Position1, ra)
+			rotatePosition(mv.centerx, mv.centery, &l.Position2, ra)
 		}
 	}
 	mv.centerx = mv.centerx + float64(dx)

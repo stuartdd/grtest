@@ -10,6 +10,37 @@ import (
 	"fyne.io/fyne/v2"
 )
 
+func TestDistance(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString(testDistance(t, 1, 100, 100, 200, 200, 141.4))
+	sb.WriteString(testDistance(t, 2, 100, 100, 150, 200, 111.8))
+	sb.WriteString(testDistance(t, 3, 100, 100, 100, 200, 100.0))
+	sb.WriteString(testDistance(t, 4, 100, 100, 50, 200, 111.8))
+	sb.WriteString(testDistance(t, 5, 100, 100, 0, 150, 111.8))
+	sb.WriteString(testDistance(t, 6, 100, 100, 0, 100, 100.0))
+	sb.WriteString(testDistance(t, 7, 100, 100, 0, 50, 111.8))
+	sb.WriteString(testDistance(t, 8, 100, 100, 0, 0, 141.4))
+	sb.WriteString(testDistance(t, 9, 100, 100, 50, 0, 111.8))
+	sb.WriteString(testDistance(t, 10, 100, 100, 100, 0, 100.0))
+	sb.WriteString(testDistance(t, 11, 100, 100, 150, 0, 111.8))
+	sb.WriteString(testDistance(t, 12, 100, 100, 200, 0, 141.4))
+	sb.WriteString(testDistance(t, 13, 100, 100, 200, 50, 111.8))
+	sb.WriteString(testDistance(t, 14, 100, 100, 200, 100, 100.0))
+	fmt.Println(sb.String())
+}
+
+func testDistance(t *testing.T, id int, fx, fy, tx, ty, exp float64) string {
+	a := distanceFromCords(fx, fy, tx, ty)
+	sA := fmt.Sprintf("%.1f", a)
+	sExp := fmt.Sprintf("%.1f", exp)
+	if sA != sExp {
+		s := fmt.Sprintf("\n%d) *** Error *** Conversion: expected %s actual %s co-ords(fx %f, fy %f, tx %f, ty %f)", id, sExp, sA, fx, fy, tx, ty)
+		t.Errorf(s)
+		return s
+	}
+	return fmt.Sprintf("\n%d) OK: Conversion: co-ords(fx %f, fy %f, tx %f, ty %f) returned %s", id, fx, fy, tx, ty, sA)
+}
+
 func TestAngles(t *testing.T) {
 	var sb strings.Builder
 	sb.WriteString(testAngle(t, 1, 100, 100, 200, 200, 45))
@@ -59,39 +90,39 @@ func TestRotate(t *testing.T) {
 	var sb strings.Builder
 	pos := &fyne.Position{X: 100, Y: 0}
 	sb.WriteString(testPos(t, 1, 100.0, 0, pos))
-	rotatePoint(0, 0, pos, 90)
+	rotatePosition(0, 0, pos, 90)
 	sb.WriteString(testPos(t, 2, 0.0, 100, pos))
-	rotatePoint(0, 0, pos, -90)
+	rotatePosition(0, 0, pos, -90)
 	sb.WriteString(testPos(t, 3, 100.0, 0, pos))
-	rotatePoint(0, 0, pos, -90)
+	rotatePosition(0, 0, pos, -90)
 	sb.WriteString(testPos(t, 4, 0.0, -100, pos))
-	rotatePoint(0, 0, pos, 45)
-	rotatePoint(0, 0, pos, 45)
+	rotatePosition(0, 0, pos, 45)
+	rotatePosition(0, 0, pos, 45)
 	sb.WriteString(testPos(t, 5, 100.0, 0, pos))
 	for i := 0; i < 90; i++ {
-		rotatePoint(0, 0, pos, 1)
+		rotatePosition(0, 0, pos, 1)
 	}
 	sb.WriteString(testPos(t, 6, 0.0, 100, pos))
 	for i := 0; i < 90; i++ {
-		rotatePoint(0, 0, pos, 1)
+		rotatePosition(0, 0, pos, 1)
 	}
 	sb.WriteString(testPos(t, 7, -100.0, 0, pos))
 	for i := 0; i < 90; i++ {
-		rotatePoint(0, 0, pos, 1)
+		rotatePosition(0, 0, pos, 1)
 	}
 	sb.WriteString(testPos(t, 8, 0, -100, pos))
 	for i := 0; i < 90; i++ {
-		rotatePoint(0, 0, pos, 1)
+		rotatePosition(0, 0, pos, 1)
 	}
 	sb.WriteString(testPos(t, 9, 100, 0, pos))
 	pos = &fyne.Position{X: 100, Y: 0}
 	sb.WriteString(testPos(t, 1, 100.0, 0, pos))
 	for i := 0; i < 180; i++ {
-		rotatePoint(0, 0, pos, -1)
+		rotatePosition(0, 0, pos, -1)
 	}
 	sb.WriteString(testPos(t, 10, -100.0, 0, pos))
 	for i := 0; i < 180; i++ {
-		rotatePoint(0, 0, pos, -1)
+		rotatePosition(0, 0, pos, -1)
 	}
 	sb.WriteString(testPos(t, 11, 100.0, 0, pos))
 

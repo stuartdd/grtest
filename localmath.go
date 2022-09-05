@@ -20,7 +20,7 @@ var SIN_COS_TABLE = []float64{0.000000000000, 0.017452406437, 0.034899496703, 0.
 /*
 Rotate a fyne.Position around a center point given a specific angle in degrees!
 */
-func rotatePoint(centerX, centerY float64, point *fyne.Position, angle int) {
+func rotatePosition(centerX, centerY float64, point *fyne.Position, angle int) {
 	dx := float64(point.X) - centerX // Cal deltas
 	dy := float64(point.Y) - centerY
 	point.X = float32(cos(angle)*dx - sin(angle)*dy + centerX) // Rotate using fast sine values
@@ -63,6 +63,12 @@ func degreesFromCords(fx, fy, tx, ty float64) int {
 		return int(math.Atan(dy/dx)*radToDeg) + 360
 	}
 	return int(math.Atan(dy/dx) * radToDeg)
+}
+
+func distanceFromCords(fx, fy, tx, ty float64) float64 {
+	dx := tx - fx
+	dy := ty - fy
+	return math.Abs(math.Sqrt(dx*dx + dy*dy))
 }
 
 func scalePoint(centerX, centerY float64, point *fyne.Position, scaleX, scaleY float64) {
