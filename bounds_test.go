@@ -15,19 +15,19 @@ func TestPoints(t *testing.T) {
 	ts := "Points: (x:5.000 y:5.000) (x:15.000 y:5.000) (x:15.000 y:15.000) (x:5.000 y:15.000)"
 	var sb strings.Builder
 	c := NewMoverCircle(color.White, color.Black, 10, 10, 10, 10)
-	sc := c.GetPoints(4).String()
+	sc := c.GetPoints().String()
 	sb.WriteString(sc + "\n")
 	if sc != ts {
 		t.Errorf("Failed")
 	}
 	i := NewMoverImage(10, 10, 10, 10, canvas.NewImageFromResource(Lander_Png))
-	si := i.GetPoints(4).String()
+	si := i.GetPoints().String()
 	sb.WriteString(si + "\n")
 	if si != ts {
 		t.Errorf("Failed")
 	}
 	r := NewMoverRect(color.White, 10, 10, 10, 10, 0)
-	sr := r.GetPoints(4).String()
+	sr := r.GetPoints().String()
 	sb.WriteString(sr + "\n")
 	if sr != ts {
 		t.Errorf("Failed")
@@ -35,11 +35,9 @@ func TestPoints(t *testing.T) {
 	app.New()
 
 	txt := NewMoverText("HI", 100, 100, 20, fyne.TextAlignCenter)
-	tb := txt.GetBounds()
-	sb.WriteString(tb.String() + "\n")
-	tr := txt.GetPoints(4).String()
+	tr := txt.GetPoints().String()
 	sb.WriteString(tr + "\n")
-	if tr != ts {
+	if tr != "Points: (x:86.953 y:87.383) (x:113.047 y:87.383) (x:113.047 y:112.617) (x:86.953 y:112.617)" {
 		t.Errorf("Failed")
 	}
 	fmt.Println(sb.String())
