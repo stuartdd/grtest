@@ -2,9 +2,48 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 	"testing"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 )
+
+func TestPoints(t *testing.T) {
+	ts := "Points: (x:5.000 y:5.000) (x:15.000 y:5.000) (x:15.000 y:15.000) (x:5.000 y:15.000)"
+	var sb strings.Builder
+	c := NewMoverCircle(color.White, color.Black, 10, 10, 10, 10)
+	sc := c.GetPoints(4).String()
+	sb.WriteString(sc + "\n")
+	if sc != ts {
+		t.Errorf("Failed")
+	}
+	i := NewMoverImage(10, 10, 10, 10, canvas.NewImageFromResource(Lander_Png))
+	si := i.GetPoints(4).String()
+	sb.WriteString(si + "\n")
+	if si != ts {
+		t.Errorf("Failed")
+	}
+	r := NewMoverRect(color.White, 10, 10, 10, 10, 0)
+	sr := r.GetPoints(4).String()
+	sb.WriteString(sr + "\n")
+	if sr != ts {
+		t.Errorf("Failed")
+	}
+	app.New()
+
+	txt := NewMoverText("HI", 100, 100, 20, fyne.TextAlignCenter)
+	tb := txt.GetBounds()
+	sb.WriteString(tb.String() + "\n")
+	tr := txt.GetPoints(4).String()
+	sb.WriteString(tr + "\n")
+	if tr != ts {
+		t.Errorf("Failed")
+	}
+	fmt.Println(sb.String())
+}
 
 func TestSizeCenter(t *testing.T) {
 	var sb strings.Builder

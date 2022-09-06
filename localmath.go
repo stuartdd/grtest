@@ -27,7 +27,7 @@ func rotatePosition(centerX, centerY float64, point *fyne.Position, angle int) {
 	point.Y = float32(sin(angle)*dx + cos(angle)*dy + centerY)
 }
 
-func scaleMovable(mov Movable, scale float64) {
+func ScaleMovable(mov Movable, scale float64) {
 	sc := mov.GetSizeAndCenter()
 	w := sc.Width * scale
 	h := sc.Height * scale
@@ -51,10 +51,6 @@ func SetSpeedAndTarget(mov, target Movable, speed float64) {
 func SetSpeedAndTargetPosition(mov Movable, speed, x, y float64) {
 	xp, yp := mov.GetCenter()
 	SetSpeedAndDirection(mov, speed, degreesFromCords(xp, yp, x, y))
-}
-
-func intersect(sac *SizeAndCenter, x, y float64) {
-
 }
 
 func degreesFromCords(fx, fy, tx, ty float64) int {
