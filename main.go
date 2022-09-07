@@ -24,6 +24,9 @@ type Movable interface {
 	GetBounds() *Bounds
 	GetPoints() *Points
 	SetSize(fyne.Size)
+	SetVisible(bool)
+	IsVisible() bool
+	ContainsAny(*Points) bool
 }
 type MoverGroup struct {
 	movers []Movable
@@ -91,15 +94,32 @@ var (
 /*
 -------------------------------------------------------------------- MoverGroup
 */
-func NewMoverCroup() *MoverGroup {
-	return &MoverGroup{movers: make([]Movable, 0)}
+func NewMoverCroup(mandatoryMover Movable) *MoverGroup {
+	mv := &MoverGroup{movers: make([]Movable, 0)}
+	mv.Add(mandatoryMover)
+	return mv
+}
+
+func (mv *MoverGroup) ContainsAny(p *Points) bool {
+	if mv.movers[0].IsVisible() {
+		return mv.movers[0].GetBounds().ContainsAny(p)
+	}
+	return false
+}
+
+func (mv *MoverGroup) SetVisible(v bool) {
+	for _, m := range mv.movers {
+		m.SetVisible(v)
+	}
+}
+
+func (mv *MoverGroup) IsVisible() bool {
+	return mv.movers[0].IsVisible()
 }
 
 func (mv *MoverGroup) Add(mover Movable) {
 	mv.movers = append(mv.movers, mover)
-	if len(mv.movers) > 1 {
-		mover.SetSpeed(mv.movers[0].GetSpeed())
-	}
+	mover.SetSpeed(mv.movers[0].GetSpeed())
 }
 
 func (mv *MoverGroup) Update(time float64) {
@@ -117,20 +137,20 @@ func (mv *MoverGroup) GetCanvasObject() fyne.CanvasObject {
 }
 
 func (mv *MoverGroup) GetSizeAndCenter() *SizeAndCenter {
-	if len(mv.movers) == 0 {
-		panic("MoverGroup: Has no movers.")
-	}
 	return mv.movers[0].GetSizeAndCenter()
 }
 
-func (mv *MoverGroup) SetCenter(float64, float64) {
-
+func (mv *MoverGroup) SetCenter(x, y float64) {
+	cx, cy := mv.movers[0].GetCenter()
+	dx := x - cx
+	dy := y - cy
+	for _, m := range mv.movers {
+		ccx, ccy := m.GetCenter()
+		m.SetCenter(ccx+dx, ccy+dy)
+	}
 }
 
 func (mv *MoverGroup) GetCenter() (float64, float64) {
-	if len(mv.movers) == 0 {
-		panic("MoverGroup: Has no movers.")
-	}
 	return mv.movers[0].GetCenter()
 }
 
@@ -141,7 +161,7 @@ func (mv *MoverGroup) SetSpeed(sx float64, sy float64) {
 }
 
 func (mv *MoverGroup) GetSpeed() (float64, float64) {
-	return 0, 0
+	return mv.movers[0].GetSpeed()
 }
 
 func (mv *MoverGroup) SetAngle(a int) {
@@ -151,23 +171,14 @@ func (mv *MoverGroup) SetAngle(a int) {
 }
 
 func (mv *MoverGroup) GetAngle() int {
-	if len(mv.movers) == 0 {
-		panic("MoverGroup: Has no movers.")
-	}
 	return mv.movers[0].GetAngle()
 }
 
 func (mv *MoverGroup) GetBounds() *Bounds {
-	if len(mv.movers) == 0 {
-		panic("MoverGroup: Has no movers.")
-	}
 	return mv.movers[0].GetBounds()
 }
 
 func (mv *MoverGroup) GetPoints() *Points {
-	if len(mv.movers) == 0 {
-		panic("MoverGroup: Has no movers.")
-	}
 	return mv.movers[0].GetPoints()
 }
 
@@ -196,6 +207,25 @@ func (mv *MoverText) Update(time float64) {
 	}
 }
 
+func (mv *MoverText) ContainsAny(p *Points) bool {
+	if mv.IsVisible() {
+		return mv.GetBounds().ContainsAny(p)
+	}
+	return false
+}
+
+func (mv *MoverText) SetVisible(v bool) {
+	if !v {
+		mv.text.Hide()
+	} else {
+		mv.text.Show()
+	}
+}
+
+func (mv *MoverText) IsVisible() bool {
+	return mv.text.Visible()
+}
+
 func (mv *MoverText) GetCanvasObject() fyne.CanvasObject {
 	return mv.text
 }
@@ -213,19 +243,22 @@ func (mv *MoverText) GetBounds() *Bounds {
 }
 
 func (mv *MoverText) GetPoints() *Points {
-	cx, cy := mv.GetCenter()
-	w2 := float64(mv.width / 2)
-	h2 := float64(mv.height / 2)
-	p := &Points{x: make([]float64, 4), y: make([]float64, 4)}
-	p.x[0] = cx - w2 // Top left
-	p.y[0] = cy - h2
-	p.x[1] = cx + w2 // Top Right
-	p.y[1] = cy - h2
-	p.x[2] = cx + w2 // Bottom Right
-	p.y[2] = cy + h2
-	p.x[3] = cx - w2 // Bottom Left
-	p.y[3] = cy + h2
-	return p
+	if mv.text.Visible() {
+		p := &Points{x: make([]float64, 4), y: make([]float64, 4)}
+		cx, cy := mv.GetCenter()
+		w2 := float64(mv.width / 2)
+		h2 := float64(mv.height / 2)
+		p.x[0] = cx - w2 // Top left
+		p.y[0] = cy - h2
+		p.x[1] = cx + w2 // Top Right
+		p.y[1] = cy - h2
+		p.x[2] = cx + w2 // Bottom Right
+		p.y[2] = cy + h2
+		p.x[3] = cx - w2 // Bottom Left
+		p.y[3] = cy + h2
+		return p
+	}
+	return &Points{x: make([]float64, 0), y: make([]float64, 0)}
 }
 
 func (mv *MoverText) SetSize(s fyne.Size) {
@@ -305,6 +338,25 @@ func NewMoverCircle(strokeColour, fillColour color.Color, centerx, centery, widt
 	return &MoverCircle{speedx: 0, speedy: 0, centerx: centerx, centery: centery, width: width, height: height, circle: circle}
 }
 
+func (mv *MoverCircle) ContainsAny(p *Points) bool {
+	if mv.IsVisible() {
+		return mv.GetBounds().ContainsAny(p)
+	}
+	return false
+}
+
+func (mv *MoverCircle) SetVisible(v bool) {
+	if !v {
+		mv.circle.Hide()
+	} else {
+		mv.circle.Show()
+	}
+}
+
+func (mv *MoverCircle) IsVisible() bool {
+	return mv.circle.Visible()
+}
+
 func (mv *MoverCircle) Update(time float64) {
 	dx := mv.speedx * time
 	dy := mv.speedy * time
@@ -333,20 +385,23 @@ func (mv *MoverCircle) GetBounds() *Bounds {
 }
 
 func (mv *MoverCircle) GetPoints() *Points {
-	cx := mv.centerx
-	cy := mv.centery
-	w2 := mv.width / 2
-	h2 := mv.height / 2
-	p := &Points{x: make([]float64, 4), y: make([]float64, 4)}
-	p.x[0] = cx - w2 // Top left
-	p.y[0] = cy - h2
-	p.x[1] = cx + w2 // Top Right
-	p.y[1] = cy - h2
-	p.x[2] = cx + w2 // Bottom Right
-	p.y[2] = cy + h2
-	p.x[3] = cx - w2 // Bottom Left
-	p.y[3] = cy + h2
-	return p
+	if mv.circle.Visible() {
+		p := &Points{x: make([]float64, 4), y: make([]float64, 4)}
+		cx := mv.centerx
+		cy := mv.centery
+		w2 := mv.width / 2
+		h2 := mv.height / 2
+		p.x[0] = cx - w2 // Top left
+		p.y[0] = cy - h2
+		p.x[1] = cx + w2 // Top Right
+		p.y[1] = cy - h2
+		p.x[2] = cx + w2 // Bottom Right
+		p.y[2] = cy + h2
+		p.x[3] = cx - w2 // Bottom Left
+		p.y[3] = cy + h2
+		return p
+	}
+	return &Points{x: make([]float64, 0), y: make([]float64, 0)}
 }
 
 func (mv *MoverCircle) SetSize(size fyne.Size) {
@@ -402,6 +457,27 @@ func NewMoverRect(colour color.Color, centerx, centery, w, h, speedAng float64) 
 	ml.AddLineToo(colour, float32(centerx-w/2), float32(centery+h/2))
 	ml.AddLineToo(colour, float32(centerx-w/2), float32(centery-h/2))
 	return ml
+}
+
+func (mv *MoverLines) ContainsAny(p *Points) bool {
+	if mv.IsVisible() {
+		return mv.GetBounds().ContainsAny(p)
+	}
+	return false
+}
+
+func (mv *MoverLines) SetVisible(v bool) {
+	for _, l := range mv.lines {
+		if !v {
+			l.Hide()
+		} else {
+			l.Show()
+		}
+	}
+}
+
+func (mv *MoverLines) IsVisible() bool {
+	return mv.lines[0].Visible()
 }
 
 func (mv *MoverLines) Update(time float64) {
@@ -524,13 +600,16 @@ func (mv *MoverLines) GetBounds() *Bounds {
 }
 
 func (mv *MoverLines) GetPoints() *Points {
-	n := len(mv.lines)
-	p := &Points{x: make([]float64, n), y: make([]float64, n)}
-	for i := 0; i < n; i++ {
-		p.x[i] = float64(mv.lines[i].Position1.X)
-		p.y[i] = float64(mv.lines[i].Position1.Y)
+	if mv.lines[0].Visible() {
+		n := len(mv.lines)
+		p := &Points{x: make([]float64, n), y: make([]float64, n)}
+		for i := 0; i < n; i++ {
+			p.x[i] = float64(mv.lines[i].Position1.X)
+			p.y[i] = float64(mv.lines[i].Position1.Y)
+		}
+		return p
 	}
-	return p
+	return &Points{x: make([]float64, 0), y: make([]float64, 0)}
 }
 
 func (mv *MoverLines) SetSpeed(x, y float64) {
@@ -592,6 +671,25 @@ func NewMoverImage(x, y, w, h float64, image *canvas.Image) *MoverImage {
 	return im
 }
 
+func (mv *MoverImage) ContainsAny(p *Points) bool {
+	if mv.IsVisible() {
+		return mv.GetBounds().ContainsAny(p)
+	}
+	return false
+}
+
+func (mv *MoverImage) SetVisible(v bool) {
+	if !v {
+		mv.image.Hide()
+	} else {
+		mv.image.Show()
+	}
+}
+
+func (mv *MoverImage) IsVisible() bool {
+	return mv.image.Visible()
+}
+
 func (mv *MoverImage) Update(time float64) {
 	dx := mv.speedx * time
 	dy := mv.speedy * time
@@ -617,20 +715,23 @@ func (mv *MoverImage) GetBounds() *Bounds {
 }
 
 func (mv *MoverImage) GetPoints() *Points {
-	cx := mv.centerx
-	cy := mv.centery
-	w2 := float64(mv.imageSize.Width / 2)
-	h2 := float64(mv.imageSize.Height / 2)
-	p := &Points{x: make([]float64, 4), y: make([]float64, 4)}
-	p.x[0] = cx - w2 // Top left
-	p.y[0] = cy - h2
-	p.x[1] = cx + w2 // Top Right
-	p.y[1] = cy - h2
-	p.x[2] = cx + w2 // Bottom Right
-	p.y[2] = cy + h2
-	p.x[3] = cx - w2 // Bottom Left
-	p.y[3] = cy + h2
-	return p
+	if mv.image.Visible() {
+		p := &Points{x: make([]float64, 4), y: make([]float64, 4)}
+		cx := mv.centerx
+		cy := mv.centery
+		w2 := float64(mv.imageSize.Width / 2)
+		h2 := float64(mv.imageSize.Height / 2)
+		p.x[0] = cx - w2 // Top left
+		p.y[0] = cy - h2
+		p.x[1] = cx + w2 // Top Right
+		p.y[1] = cy - h2
+		p.x[2] = cx + w2 // Bottom Right
+		p.y[2] = cy + h2
+		p.x[3] = cx - w2 // Bottom Left
+		p.y[3] = cy + h2
+		return p
+	}
+	return &Points{x: make([]float64, 0), y: make([]float64, 0)}
 }
 
 func (mv *MoverImage) SetSize(size fyne.Size) {
@@ -736,8 +837,7 @@ func main() {
 	bBox5 := NewMoverRect(color.RGBA{0, 255, 0, 255}, 200, 200, 100, 100, 0)
 
 	circ1 := NewMoverCircle(color.RGBA{255, 255, 0, 255}, color.RGBA{0, 255, 255, 255}, 400, 100, 20, 20)
-	group1 := NewMoverCroup()
-	group1.Add(circ1)
+	group1 := NewMoverCroup(circ1)
 	setPoints(group1, circ1)
 
 	controller := NewControllerContainer(500, 500)
@@ -774,13 +874,14 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(time.Second)
-			SetSpeedAndTarget(group1, player, 25)
+			if player.IsVisible() {
+				SetSpeedAndTarget(group1, player, 25)
+			}
 		}
 	}()
 	go func() {
 		for {
 			time.Sleep(time.Second * 5)
-			SetSpeedAndTarget(group1, player, 25)
 			text1.SetText("Center  : MISSED")
 			text2.SetText("Trailing: MISSED")
 			text3.SetText("Leading : MISSED")
@@ -807,7 +908,7 @@ func main() {
 			t3 := text3.GetBounds()
 			bBox5.SetSize(t3.Size())
 			bBox5.SetCenter(float64(t3.Center().X), float64(t3.Center().Y))
-			if circ1.GetBounds().ContainsAny(player.GetPoints()) {
+			if circ1.ContainsAny(player.GetPoints()) {
 				text1.SetText("Center  : HIT")
 				text2.SetText("Trailing: HIT")
 				text3.SetText("Leading : HIT")
@@ -815,7 +916,8 @@ func main() {
 				text2.SetSpeed(10, 10)
 				text3.SetSpeed(10, 10)
 				player.SetSpeed(0, 0)
-				circ1.SetCenter(0, 0)
+				player.SetVisible(false)
+
 			}
 
 		}
