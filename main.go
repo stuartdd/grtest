@@ -17,24 +17,27 @@ type Movable interface {
 	GetCenter() (float64, float64)
 	SetSpeed(float64, float64)
 	GetSpeed() (float64, float64)
+	SetAngle(int)
+	GetAngle() int
 	GetCanvasObject() fyne.CanvasObject
 	GetSizeAndCenter() *SizeAndCenter
 	GetBounds() *Bounds
 	GetPoints() *Points
 	SetSize(fyne.Size)
 }
+type MoverGroup struct {
+	movers []Movable
+}
 
 type MoverText struct {
 	speedx    float64
 	speedy    float64
 	positionx float64
-	positiony float64
+	centery   float64
 	width     float64
 	height    float64
 	text      *canvas.Text
 	align     fyne.TextAlign
-	size      float32
-	style     fyne.TextStyle
 }
 
 type MoverCircle struct {
@@ -77,20 +80,109 @@ type ControllerLayout struct {
 var _ Movable = (*MoverLines)(nil)
 var _ Movable = (*MoverImage)(nil)
 var _ Movable = (*MoverCircle)(nil)
+var _ Movable = (*MoverText)(nil)
+var _ Movable = (*MoverGroup)(nil)
 
 var (
-	player Movable
+	player    Movable
+	textStyle = fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2}
 )
+
+/*
+-------------------------------------------------------------------- MoverGroup
+*/
+func NewMoverCroup() *MoverGroup {
+	return &MoverGroup{movers: make([]Movable, 0)}
+}
+
+func (mv *MoverGroup) Add(mover Movable) {
+	mv.movers = append(mv.movers, mover)
+	if len(mv.movers) > 1 {
+		mover.SetSpeed(mv.movers[0].GetSpeed())
+	}
+}
+
+func (mv *MoverGroup) Update(time float64) {
+	for _, m := range mv.movers {
+		m.Update(time)
+	}
+}
+
+func (mv *MoverGroup) GetCanvasObject() fyne.CanvasObject {
+	container := container.New(&ControllerLayout{})
+	for _, m := range mv.movers {
+		container.Add(m.GetCanvasObject())
+	}
+	return container
+}
+
+func (mv *MoverGroup) GetSizeAndCenter() *SizeAndCenter {
+	if len(mv.movers) == 0 {
+		panic("MoverGroup: Has no movers.")
+	}
+	return mv.movers[0].GetSizeAndCenter()
+}
+
+func (mv *MoverGroup) SetCenter(float64, float64) {
+
+}
+
+func (mv *MoverGroup) GetCenter() (float64, float64) {
+	if len(mv.movers) == 0 {
+		panic("MoverGroup: Has no movers.")
+	}
+	return mv.movers[0].GetCenter()
+}
+
+func (mv *MoverGroup) SetSpeed(sx float64, sy float64) {
+	for _, m := range mv.movers {
+		m.SetSpeed(sx, sy)
+	}
+}
+
+func (mv *MoverGroup) GetSpeed() (float64, float64) {
+	return 0, 0
+}
+
+func (mv *MoverGroup) SetAngle(a int) {
+	for _, m := range mv.movers {
+		m.SetAngle(a)
+	}
+}
+
+func (mv *MoverGroup) GetAngle() int {
+	if len(mv.movers) == 0 {
+		panic("MoverGroup: Has no movers.")
+	}
+	return mv.movers[0].GetAngle()
+}
+
+func (mv *MoverGroup) GetBounds() *Bounds {
+	if len(mv.movers) == 0 {
+		panic("MoverGroup: Has no movers.")
+	}
+	return mv.movers[0].GetBounds()
+}
+
+func (mv *MoverGroup) GetPoints() *Points {
+	if len(mv.movers) == 0 {
+		panic("MoverGroup: Has no movers.")
+	}
+	return mv.movers[0].GetPoints()
+}
+
+func (mv *MoverGroup) SetSize(fyne.Size) {
+
+}
 
 /*
 -------------------------------------------------------------------- MoverText
 */
-func NewMoverText(text string, posx, posy float64, si float32, align fyne.TextAlign) *MoverText {
-	ts := fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2}
-	t := &canvas.Text{Text: text, TextSize: si, TextStyle: ts}
-	size := fyne.MeasureText(text, si, ts)
-	mv := &MoverText{text: t, style: ts, align: align, size: si, positionx: posx, positiony: posy, width: float64(size.Width), height: float64(size.Height)}
-	mv.text.Move(*mv.getPosition())
+func NewMoverText(text string, posx, centery float64, si float32, align fyne.TextAlign) *MoverText {
+	t := &canvas.Text{Text: text, TextSize: si, TextStyle: textStyle}
+	size := fyne.MeasureText(text, si, textStyle)
+	mv := &MoverText{text: t, align: align, positionx: posx, centery: centery, width: float64(size.Width), height: float64(size.Height)}
+	mv.position()
 	return mv
 }
 
@@ -98,7 +190,9 @@ func (mv *MoverText) Update(time float64) {
 	dx := mv.speedx * time
 	dy := mv.speedy * time
 	if (dx != 0) || (dy != 0) {
-		mv.text.Move(*mv.getPosition())
+		mv.positionx = mv.positionx + dx
+		mv.centery = mv.centery + dy
+		mv.position()
 	}
 }
 
@@ -136,7 +230,7 @@ func (mv *MoverText) GetPoints() *Points {
 
 func (mv *MoverText) SetSize(s fyne.Size) {
 	mv.text.Resize(s)
-	size := fyne.MeasureText(mv.text.Text, mv.size, mv.style)
+	size := fyne.MeasureText(mv.text.Text, mv.text.TextSize, mv.text.TextStyle)
 	mv.width = float64(size.Width)
 	mv.height = float64(size.Height)
 }
@@ -146,22 +240,20 @@ func (mv *MoverText) SetText(text string) {
 	size := fyne.MeasureText(text, mv.text.TextSize, mv.text.TextStyle)
 	mv.width = float64(size.Width)
 	mv.height = float64(size.Height)
-}
-
-func (mv *MoverText) getPosition() *fyne.Position {
-	switch mv.align {
-	case fyne.TextAlignLeading:
-		return &fyne.Position{X: float32(mv.positionx), Y: float32(mv.positiony - mv.height/2)}
-	case fyne.TextAlignTrailing:
-		return &fyne.Position{X: float32(mv.positionx - mv.width), Y: float32(mv.positiony - mv.height/2)}
-	}
-	return &fyne.Position{X: float32(mv.positionx - mv.width/2), Y: float32(mv.positiony - mv.height/2)}
+	mv.position()
 }
 
 func (mv *MoverText) SetCenter(x, y float64) {
-	mv.positionx = x
-	mv.positiony = y
-	mv.text.Move(*mv.getPosition())
+	mv.positionx = y + (mv.height / 2)
+	mv.centery = y
+	mv.position()
+}
+
+func (mv *MoverText) SetAngle(a int) {
+}
+
+func (mv *MoverText) GetAngle() int {
+	return 0
 }
 
 func (mv *MoverText) SetSpeed(x, y float64) {
@@ -170,17 +262,35 @@ func (mv *MoverText) SetSpeed(x, y float64) {
 }
 
 func (mv *MoverText) GetCenter() (float64, float64) {
+	cy := mv.centery
+	px := mv.positionx
+	w2 := mv.width / 2
 	switch mv.align {
 	case fyne.TextAlignLeading:
-		return mv.positionx + mv.width/2, mv.positiony
+		return px + w2, cy
 	case fyne.TextAlignTrailing:
-		return mv.positionx - mv.width/2, mv.positiony
+		return px - w2, cy
 	}
-	return mv.positionx, mv.positiony
+	return px, cy
 }
 
 func (mv *MoverText) GetSpeed() (float64, float64) {
 	return mv.speedx, mv.speedy
+}
+
+func (mv *MoverText) position() {
+	cy := mv.centery - mv.height/2
+	cx := mv.positionx - mv.width/2
+	switch mv.align {
+	case fyne.TextAlignLeading:
+		cx = mv.positionx
+	case fyne.TextAlignTrailing:
+		cx = mv.positionx - mv.width
+	}
+	size := fyne.MeasureText(mv.text.Text, mv.text.TextSize, mv.text.TextStyle)
+	mv.width = float64(size.Width)
+	mv.height = float64(size.Height)
+	mv.text.Move(fyne.Position{X: float32(cx), Y: float32(cy)})
 }
 
 /*
@@ -260,6 +370,13 @@ func (mv *MoverCircle) SetCenter(x, y float64) {
 func (mv *MoverCircle) SetSpeed(x, y float64) {
 	mv.speedx = x
 	mv.speedy = y
+}
+
+func (mv *MoverCircle) SetAngle(a int) {
+}
+
+func (mv *MoverCircle) GetAngle() int {
+	return 0
 }
 
 func (mv *MoverCircle) GetCenter() (float64, float64) {
@@ -344,6 +461,10 @@ func (mv *MoverLines) GetCanvasObject() fyne.CanvasObject {
 
 func (mv *MoverLines) GetAngle() int {
 	return mv.currentAng
+}
+
+func (mv *MoverLines) SetAngle(a int) {
+	mv.currentAng = a
 }
 
 func (mv *MoverLines) SetSize(size fyne.Size) {
@@ -527,6 +648,12 @@ func (mv *MoverImage) SetSpeed(x, y float64) {
 	mv.speedy = y
 }
 
+func (mv *MoverImage) SetAngle(a int) {
+}
+
+func (mv *MoverImage) GetAngle() int {
+	return 0
+}
 func (mv *MoverImage) GetCenter() (float64, float64) {
 	return mv.centerx, mv.centery
 }
@@ -599,22 +726,25 @@ func main() {
 	lines3 := NewMoverLines(0, 0, 0)
 	lines3.AddLineToo(color.White, 1000, 1000)
 
-	circ1 := NewMoverCircle(color.RGBA{255, 255, 0, 255}, color.RGBA{0, 255, 255, 255}, 400, 100, 20, 20)
-
-	text1 := NewMoverText("Status1:", 200, 10, 20, fyne.TextAlignCenter)
-	text2 := NewMoverText("Status2:", 200, 40, 20, fyne.TextAlignTrailing)
-	text3 := NewMoverText("Status3:", 200, 70, 20, fyne.TextAlignLeading)
+	text1 := NewMoverText("Center  :", 200, 10, 20, fyne.TextAlignCenter)
+	text2 := NewMoverText("Trailing:", 200, 40, 20, fyne.TextAlignTrailing)
+	text3 := NewMoverText("Leading :", 200, 70, 20, fyne.TextAlignLeading)
 	bBox1 := NewMoverRect(color.RGBA{250, 0, 0, 255}, 200, 200, 100, 100, 0)
 	bBox2 := NewMoverRect(color.RGBA{250, 0, 0, 255}, 200, 200, 100, 100, 0)
 	bBox3 := NewMoverRect(color.RGBA{0, 255, 0, 255}, 200, 200, 100, 100, 0)
 	bBox4 := NewMoverRect(color.RGBA{0, 255, 0, 255}, 200, 200, 100, 100, 0)
 	bBox5 := NewMoverRect(color.RGBA{0, 255, 0, 255}, 200, 200, 100, 100, 0)
 
+	circ1 := NewMoverCircle(color.RGBA{255, 255, 0, 255}, color.RGBA{0, 255, 255, 255}, 400, 100, 20, 20)
+	group1 := NewMoverCroup()
+	group1.Add(circ1)
+	setPoints(group1, circ1)
+
 	controller := NewControllerContainer(500, 500)
 	container := container.New(controller)
 
-	controller.Add(circ1)
-	container.Add(circ1.GetCanvasObject())
+	controller.Add(group1)
+	container.Add(group1.GetCanvasObject())
 	controller.Add(player)
 	container.Add(player.GetCanvasObject())
 
@@ -637,21 +767,26 @@ func main() {
 	container.Add(bBox5.GetCanvasObject())
 
 	mainWindow.SetContent(container)
-
+	// setPoints(text1, container)
+	// setPoints(text2, container)
+	// setPoints(text3, container)
 	an := startAnimation(controller, container)
 	go func() {
 		for {
 			time.Sleep(time.Second)
-			SetSpeedAndTarget(circ1, player, 25)
+			SetSpeedAndTarget(group1, player, 25)
 		}
 	}()
 	go func() {
 		for {
 			time.Sleep(time.Second * 5)
-			SetSpeedAndTarget(circ1, player, 25)
-			text1.SetText("Status MISS")
-			text2.SetText("Status MISS")
-			text3.SetText("Status MISS")
+			SetSpeedAndTarget(group1, player, 25)
+			text1.SetText("Center  : MISSED")
+			text2.SetText("Trailing: MISSED")
+			text3.SetText("Leading : MISSED")
+			text1.SetSpeed(0, 0)
+			text2.SetSpeed(0, 0)
+			text3.SetSpeed(0, 0)
 		}
 	}()
 	go func() {
@@ -673,9 +808,12 @@ func main() {
 			bBox5.SetSize(t3.Size())
 			bBox5.SetCenter(float64(t3.Center().X), float64(t3.Center().Y))
 			if circ1.GetBounds().ContainsAny(player.GetPoints()) {
-				text1.SetText("Status HIT")
-				text2.SetText("Status HIT")
-				text3.SetText("Status HIT")
+				text1.SetText("Center  : HIT")
+				text2.SetText("Trailing: HIT")
+				text3.SetText("Leading : HIT")
+				text1.SetSpeed(10, 10)
+				text2.SetSpeed(10, 10)
+				text3.SetSpeed(10, 10)
 				player.SetSpeed(0, 0)
 				circ1.SetCenter(0, 0)
 			}
@@ -699,4 +837,12 @@ func startAnimation(controller *ControllerLayout, container *fyne.Container) *fy
 	}}
 	an.Start()
 	return an
+}
+
+func setPoints(group *MoverGroup, mv Movable) {
+	mp := mv.GetPoints()
+	for i := 0; i < len(mp.x); i++ {
+		co := NewMoverCircle(color.White, color.RGBA{250, 0, 0, 255}, mp.x[i], mp.y[i], 5, 5)
+		group.Add(co)
+	}
 }
