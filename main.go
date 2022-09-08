@@ -19,6 +19,8 @@ type Movable interface {
 	GetSpeed() (float64, float64)
 	SetAngle(int)
 	GetAngle() int
+	SetAngleSpeed(float64)
+	GetAngleSpeed() float64
 	GetCanvasObject() fyne.CanvasObject
 	GetSizeAndCenter() *SizeAndCenter
 	GetBounds() *Bounds
@@ -29,7 +31,10 @@ type Movable interface {
 	ContainsAny(*Points) bool
 }
 type MoverGroup struct {
-	movers []Movable
+	movers     []Movable
+	currentAng int
+	accAng     float64
+	speedAng   float64
 }
 
 type MoverText struct {
@@ -95,7 +100,7 @@ var (
 -------------------------------------------------------------------- MoverGroup
 */
 func NewMoverCroup(mandatoryMover Movable) *MoverGroup {
-	mv := &MoverGroup{movers: make([]Movable, 0)}
+	mv := &MoverGroup{movers: make([]Movable, 0), currentAng: 0, speedAng: 0}
 	mv.Add(mandatoryMover)
 	return mv
 }
@@ -123,8 +128,33 @@ func (mv *MoverGroup) Add(mover Movable) {
 }
 
 func (mv *MoverGroup) Update(time float64) {
-	for _, m := range mv.movers {
+	mv0 := mv.movers[0]
+	mv0.Update(time)
+
+	cx, cy := mv0.GetCenter()
+	ra := 0
+	if mv.speedAng != 0 {
+		mv.accAng = mv.accAng + (mv.speedAng * float64(time))
+		for mv.accAng > 360.0 {
+			mv.accAng = mv.accAng - 360.0
+		}
+		for mv.accAng < 0 {
+			mv.accAng = mv.accAng + 360.0
+		}
+		// Calc how much we need to rotate!
+		intAng := int(mv.accAng)
+		if mv.currentAng != intAng {
+			ra = intAng - mv.currentAng
+			mv.currentAng = intAng
+		}
+	}
+	for i := 1; i < len(mv.movers); i++ {
+		m := mv.movers[i]
 		m.Update(time)
+		if ra != 0 {
+			cxm, cym := m.GetCenter()
+			m.SetCenter(rotatePoints(cx, cy, cxm, cym, ra))
+		}
 	}
 }
 
@@ -164,14 +194,23 @@ func (mv *MoverGroup) GetSpeed() (float64, float64) {
 	return mv.movers[0].GetSpeed()
 }
 
+func (mv *MoverGroup) SetAngleSpeed(as float64) {
+	mv.speedAng = as
+}
+
+func (mv *MoverGroup) GetAngleSpeed() float64 {
+	return mv.speedAng
+}
+
 func (mv *MoverGroup) SetAngle(a int) {
+	mv.currentAng = a
 	for _, m := range mv.movers {
 		m.SetAngle(a)
 	}
 }
 
 func (mv *MoverGroup) GetAngle() int {
-	return mv.movers[0].GetAngle()
+	return mv.currentAng
 }
 
 func (mv *MoverGroup) GetBounds() *Bounds {
@@ -286,6 +325,13 @@ func (mv *MoverText) SetAngle(a int) {
 }
 
 func (mv *MoverText) GetAngle() int {
+	return 0
+}
+
+func (mv *MoverText) SetAngleSpeed(as float64) {
+}
+
+func (mv *MoverText) GetAngleSpeed() float64 {
 	return 0
 }
 
@@ -434,6 +480,13 @@ func (mv *MoverCircle) GetAngle() int {
 	return 0
 }
 
+func (mv *MoverCircle) SetAngleSpeed(as float64) {
+}
+
+func (mv *MoverCircle) GetAngleSpeed() float64 {
+	return 0
+}
+
 func (mv *MoverCircle) GetCenter() (float64, float64) {
 	return mv.centerx, mv.centery
 }
@@ -541,6 +594,14 @@ func (mv *MoverLines) GetAngle() int {
 
 func (mv *MoverLines) SetAngle(a int) {
 	mv.currentAng = a
+}
+
+func (mv *MoverLines) SetAngleSpeed(as float64) {
+	mv.speedAng = as
+}
+
+func (mv *MoverLines) GetAngleSpeed() float64 {
+	return mv.speedAng
 }
 
 func (mv *MoverLines) SetSize(size fyne.Size) {
@@ -755,6 +816,14 @@ func (mv *MoverImage) SetAngle(a int) {
 func (mv *MoverImage) GetAngle() int {
 	return 0
 }
+
+func (mv *MoverImage) SetAngleSpeed(as float64) {
+}
+
+func (mv *MoverImage) GetAngleSpeed() float64 {
+	return 0
+}
+
 func (mv *MoverImage) GetCenter() (float64, float64) {
 	return mv.centerx, mv.centery
 }
@@ -818,11 +887,11 @@ func main() {
 	player = NewMoverImage(100, 100, 40, 40, canvas.NewImageFromResource(Lander_Png))
 	player.SetSpeed(15, 15)
 
-	lines1 := NewMoverLines(200, 200, 5)
+	lines1 := NewMoverLines(200, 200, 10)
 	lines1.AddLine(color.White, 200, 200, 200, 300)
 	lines1.AddLineToo(color.White, 100, 300)
 	lines1.AddLineToo(color.White, 200, 200)
-	lines1.SetSpeed(2, 2)
+	lines1.SetSpeed(0, 0)
 
 	lines3 := NewMoverLines(0, 0, 0)
 	lines3.AddLineToo(color.White, 1000, 1000)
@@ -830,26 +899,27 @@ func main() {
 	text1 := NewMoverText("Center  :", 200, 10, 20, fyne.TextAlignCenter)
 	text2 := NewMoverText("Trailing:", 200, 40, 20, fyne.TextAlignTrailing)
 	text3 := NewMoverText("Leading :", 200, 70, 20, fyne.TextAlignLeading)
-	bBox1 := NewMoverRect(color.RGBA{250, 0, 0, 255}, 200, 200, 100, 100, 0)
+	// bBox1 := NewMoverRect(color.RGBA{250, 0, 0, 255}, 200, 200, 100, 100, 0)
 	bBox2 := NewMoverRect(color.RGBA{250, 0, 0, 255}, 200, 200, 100, 100, 0)
 	bBox3 := NewMoverRect(color.RGBA{0, 255, 0, 255}, 200, 200, 100, 100, 0)
 	bBox4 := NewMoverRect(color.RGBA{0, 255, 0, 255}, 200, 200, 100, 100, 0)
 	bBox5 := NewMoverRect(color.RGBA{0, 255, 0, 255}, 200, 200, 100, 100, 0)
 
 	circ1 := NewMoverCircle(color.RGBA{255, 255, 0, 255}, color.RGBA{0, 255, 255, 255}, 400, 100, 20, 20)
-	group1 := NewMoverCroup(circ1)
-	setPoints(group1, circ1)
+	group1 := NewMoverCroup(lines1)
+	setPoints(group1, lines1)
+	group1.SetAngleSpeed(10)
 
 	controller := NewControllerContainer(500, 500)
 	container := container.New(controller)
 
-	controller.Add(group1)
-	container.Add(group1.GetCanvasObject())
+	controller.Add(circ1)
+	container.Add(circ1.GetCanvasObject())
 	controller.Add(player)
 	container.Add(player.GetCanvasObject())
 
-	controller.Add(lines1)
-	container.Add(lines1.GetCanvasObject())
+	controller.Add(group1)
+	container.Add(group1.GetCanvasObject())
 	controller.Add(lines3)
 	container.Add(lines3.GetCanvasObject())
 
@@ -860,7 +930,7 @@ func main() {
 	controller.Add(text3)
 	container.Add(text3.GetCanvasObject())
 
-	container.Add(bBox1.GetCanvasObject())
+	// container.Add(bBox1.GetCanvasObject())
 	container.Add(bBox2.GetCanvasObject())
 	container.Add(bBox3.GetCanvasObject())
 	container.Add(bBox4.GetCanvasObject())
@@ -875,7 +945,7 @@ func main() {
 		for {
 			time.Sleep(time.Second)
 			if player.IsVisible() {
-				SetSpeedAndTarget(group1, player, 25)
+				SetSpeedAndTarget(circ1, player, 23)
 			}
 		}
 	}()
@@ -893,9 +963,9 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(time.Millisecond * 100)
-			s := lines1.GetBounds()
-			bBox1.SetSize(s.Size())
-			bBox1.SetCenter(float64(s.Center().X), float64(s.Center().Y))
+			// s := lines1.GetBounds()
+			// bBox1.SetSize(s.Size())
+			// bBox1.SetCenter(float64(s.Center().X), float64(s.Center().Y))
 			i := player.GetBounds()
 			bBox2.SetSize(i.Size())
 			bBox2.SetCenter(float64(i.Center().X), float64(i.Center().Y))

@@ -27,6 +27,14 @@ func rotatePosition(centerX, centerY float64, point *fyne.Position, angle int) {
 	point.Y = float32(sin(angle)*dx + cos(angle)*dy + centerY)
 }
 
+func rotatePoints(centerX, centerY, x, y float64, angle int) (float64, float64) {
+	dx := x - centerX // Cal deltas
+	dy := y - centerY
+	px := cos(angle)*dx - sin(angle)*dy + centerX // Rotate using fast sine values
+	py := sin(angle)*dx + cos(angle)*dy + centerY
+	return px, py
+}
+
 func ScaleMovable(mov Movable, scale float64) {
 	sc := mov.GetSizeAndCenter()
 	w := sc.Width * scale
