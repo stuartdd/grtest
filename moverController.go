@@ -24,6 +24,7 @@ type Movable interface {
 	SetVisible(bool)
 	IsVisible() bool
 	ContainsAny(*Points) bool
+	String() string
 }
 
 type ControllerLayout struct {

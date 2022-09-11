@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 )
@@ -19,6 +21,10 @@ func NewMoverCroup(mandatoryMover Movable) *MoverGroup {
 	mv := &MoverGroup{movers: make([]Movable, 0), currentAng: 0, speedAng: 0}
 	mv.Add(mandatoryMover)
 	return mv
+}
+
+func (mv *MoverGroup) String() string {
+	return fmt.Sprintf("Group size:%d. [0] %s", len(mv.movers), mv.movers[0])
 }
 
 func (mv *MoverGroup) ContainsAny(p *Points) bool {

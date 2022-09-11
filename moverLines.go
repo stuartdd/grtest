@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 
@@ -28,6 +29,11 @@ type MoverLines struct {
 
 func NewMoverLines(centerx, centery, speedAng float64) *MoverLines {
 	return &MoverLines{speedx: 0, speedy: 0, speedAng: speedAng, centerx: centerx, centery: centery, currentAng: 0, accAng: 0, lines: make([]*canvas.Line, 0)}
+}
+
+func (mv *MoverLines) String() string {
+	saw := mv.GetSizeAndCenter()
+	return fmt.Sprintf("Lines x:%.3f y:%.3f w:%.3f h:%.3f", saw.CenterX, saw.CenterY, saw.Width, saw.Height)
 }
 
 func NewMoverRect(colour color.Color, centerx, centery, w, h, speedAng float64) *MoverLines {

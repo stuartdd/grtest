@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 )
@@ -25,6 +27,10 @@ func NewMoverText(text string, posx, centery float64, si float32, align fyne.Tex
 	mv := &MoverText{text: t, align: align, positionx: posx, centery: centery, width: float64(size.Width), height: float64(size.Height)}
 	mv.position()
 	return mv
+}
+
+func (mv *MoverText) String() string {
+	return fmt.Sprintf("Text t:%s pos:%.3f y:%.3f w:%.3f h:%.3f", mv.text.Text, mv.positionx, mv.centery, mv.width, mv.height)
 }
 
 func (mv *MoverText) Update(time float64) {
@@ -107,7 +113,7 @@ func (mv *MoverText) SetText(text string) {
 }
 
 func (mv *MoverText) SetCenter(x, y float64) {
-	mv.positionx = y + (mv.height / 2)
+	mv.positionx = x
 	mv.centery = y
 	mv.position()
 }

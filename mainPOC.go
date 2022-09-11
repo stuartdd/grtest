@@ -40,19 +40,20 @@ func mainPOC(mainWindow fyne.Window, controller *ControllerLayout) {
 	lines1.AddLineToo(color.White, 100, 300)
 	lines1.AddLineToo(color.White, 200, 200)
 	lines1.SetSpeed(0, 0)
+	text1 := NewMoverText("Center  :", 100, 300, 10, fyne.TextAlignCenter)
+	text1.SetSpeed(5, 5)
 	group1 := NewMoverCroup(lines1)
 	setPoints(group1, lines1)
+	group1.Add(text1)
 	group1.SetAngleSpeed(10)
 
 	guideLine := NewMoverLines(0, 0, 0)
 	guideLine.AddLineToo(color.White, 1000, 1000)
 
-	text1 := NewMoverText("Center  :", 200, 10, 20, fyne.TextAlignCenter)
 	text2 := NewMoverText("Trailing:", 200, 40, 20, fyne.TextAlignTrailing)
 	text3 := NewMoverText("Leading :", 200, 70, 20, fyne.TextAlignLeading)
-	bBox1 := NewMoverRect(color.RGBA{250, 0, 0, 255}, 200, 200, 100, 100, 0)
 	bBox2 := NewMoverRect(color.RGBA{250, 0, 0, 255}, 200, 200, 100, 100, 0)
-	bBox3 := NewMoverRect(color.RGBA{0, 255, 0, 255}, 200, 200, 100, 100, 0)
+	bBox3 := NewMoverRect(color.RGBA{250, 0, 0, 255}, 200, 200, 100, 100, 0)
 	bBox4 := NewMoverRect(color.RGBA{0, 255, 0, 255}, 200, 200, 100, 100, 0)
 	bBox5 := NewMoverRect(color.RGBA{0, 255, 0, 255}, 200, 200, 100, 100, 0)
 
@@ -64,14 +65,12 @@ func mainPOC(mainWindow fyne.Window, controller *ControllerLayout) {
 	controller.AddMover(circ1)
 	controller.AddMover(player)
 	controller.AddMover(group1)
-	controller.AddMover(text1)
 	controller.AddMover(text2)
 	controller.AddMover(text3)
 	/*
 		Add Movers that are *NOT* managed directly by the controller
 	*/
 	controller.AddToContainer(guideLine.GetCanvasObject())
-	controller.AddToContainer(bBox1.GetCanvasObject())
 	controller.AddToContainer(bBox2.GetCanvasObject())
 	controller.AddToContainer(bBox3.GetCanvasObject())
 	controller.AddToContainer(bBox4.GetCanvasObject())
@@ -96,7 +95,6 @@ func mainPOC(mainWindow fyne.Window, controller *ControllerLayout) {
 			text1.SetText("Center  : MISSED")
 			text2.SetText("Trailing: MISSED")
 			text3.SetText("Leading : MISSED")
-			text1.SetSpeed(0, 0)
 			text2.SetSpeed(0, 0)
 			text3.SetSpeed(0, 0)
 		}
@@ -104,9 +102,6 @@ func mainPOC(mainWindow fyne.Window, controller *ControllerLayout) {
 	go func() {
 		for {
 			time.Sleep(time.Millisecond * 100)
-			// s := lines1.GetBounds()
-			// bBox1.SetSize(s.Size())
-			// bBox1.SetCenter(float64(s.Center().X), float64(s.Center().Y))
 			i := player.GetBounds()
 			bBox2.SetSize(i.Size())
 			bBox2.SetCenter(float64(i.Center().X), float64(i.Center().Y))
@@ -123,14 +118,11 @@ func mainPOC(mainWindow fyne.Window, controller *ControllerLayout) {
 				text1.SetText("Center  : HIT")
 				text2.SetText("Trailing: HIT")
 				text3.SetText("Leading : HIT")
-				text1.SetSpeed(10, 10)
 				text2.SetSpeed(10, 10)
 				text3.SetSpeed(10, 10)
 				player.SetSpeed(0, 0)
 				player.SetVisible(false)
-
 			}
-
 		}
 	}()
 }

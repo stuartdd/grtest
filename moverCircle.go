@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 
 	"fyne.io/fyne/v2"
@@ -34,6 +35,10 @@ func (mv *MoverCircle) ContainsAny(p *Points) bool {
 		return mv.GetBounds().ContainsAny(p)
 	}
 	return false
+}
+
+func (mv *MoverCircle) String() string {
+	return fmt.Sprintf("Circle x:%.3f y:%.3f w:%.3f h:%.3f", mv.centerx, mv.centery, mv.width, mv.height)
 }
 
 func (mv *MoverCircle) SetVisible(v bool) {

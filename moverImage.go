@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 )
@@ -24,6 +26,10 @@ func NewMoverImage(x, y, w, h float64, image *canvas.Image) *MoverImage {
 	im := &MoverImage{imageSize: fyne.Size{Width: float32(w), Height: float32(h)}, image: image, centerx: x, centery: y, speedx: 0, speedy: 0}
 	im.SetCenter(x, y)
 	return im
+}
+
+func (mv *MoverImage) String() string {
+	return fmt.Sprintf("Circle x:%.3f y:%.3f w:%.3f h:%.3f", mv.centerx, mv.centery, mv.image.Size().Width, mv.image.MinSize().Height)
 }
 
 func (mv *MoverImage) ContainsAny(p *Points) bool {
