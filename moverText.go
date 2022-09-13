@@ -23,8 +23,8 @@ type MoverText struct {
 */
 func NewMoverText(text string, posx, centery float64, si float32, align fyne.TextAlign) *MoverText {
 	t := &canvas.Text{Text: text, TextSize: si, TextStyle: textStyle}
-	size := fyne.MeasureText(text, si, textStyle)
-	mv := &MoverText{text: t, align: align, positionx: posx, centery: centery, width: float64(size.Width), height: float64(size.Height)}
+	mv := &MoverText{text: t, align: align, positionx: posx, centery: centery}
+	mv.textSize()
 	mv.position()
 	return mv
 }
@@ -67,21 +67,21 @@ func (mv *MoverText) GetCanvasObject() fyne.CanvasObject {
 }
 
 func (mv *MoverText) GetSizeAndCenter() *SizeAndCenter {
-	cx, cy := mv.GetCenter()
+	cx, cy := mv.textCenter()
 	return NewSizeAndCenter(float64(mv.width), float64(mv.height), cx, cy)
 }
 
 func (mv *MoverText) GetBounds() *Bounds {
 	w2 := float64(mv.width / 2)
 	h2 := float64(mv.height / 2)
-	cx, cy := mv.GetCenter()
+	cx, cy := mv.textCenter()
 	return &Bounds{x1: cx - w2, x2: cx + w2, y1: cy - h2, y2: cy + h2}
 }
 
 func (mv *MoverText) GetPoints() *Points {
 	if mv.text.Visible() {
 		p := &Points{x: make([]float64, 4), y: make([]float64, 4)}
-		cx, cy := mv.GetCenter()
+		cx, cy := mv.textCenter()
 		w2 := float64(mv.width / 2)
 		h2 := float64(mv.height / 2)
 		p.x[0] = cx - w2 // Top left
@@ -138,33 +138,46 @@ func (mv *MoverText) SetSpeed(x, y float64) {
 }
 
 func (mv *MoverText) GetCenter() (float64, float64) {
-	cy := mv.centery
-	px := mv.positionx
-	w2 := mv.width / 2
-	switch mv.align {
-	case fyne.TextAlignLeading:
-		return px + w2, cy
-	case fyne.TextAlignTrailing:
-		return px - w2, cy
-	}
-	return px, cy
+	return mv.positionx, mv.centery
 }
 
 func (mv *MoverText) GetSpeed() (float64, float64) {
 	return mv.speedx, mv.speedy
 }
 
-func (mv *MoverText) position() {
-	cy := mv.centery - mv.height/2
-	cx := mv.positionx - mv.width/2
+func (mv *MoverText) textCenter() (float64, float64) {
+	py := mv.centery
+	px := mv.positionx
+	w2 := mv.width / 2
 	switch mv.align {
 	case fyne.TextAlignLeading:
-		cx = mv.positionx
+		px = mv.positionx + w2
 	case fyne.TextAlignTrailing:
-		cx = mv.positionx - mv.width
+		px = mv.positionx - w2
 	}
+	return px, py
+}
+
+func (mv *MoverText) textPosition() (float64, float64) {
+	py := mv.centery - mv.height/2
+	px := mv.positionx
+	w2 := mv.width / 2
+	switch mv.align {
+	case fyne.TextAlignCenter:
+		px = mv.positionx - w2
+	case fyne.TextAlignTrailing:
+		px = mv.positionx - mv.width
+	}
+	return px, py
+}
+
+func (mv *MoverText) textSize() {
 	size := fyne.MeasureText(mv.text.Text, mv.text.TextSize, mv.text.TextStyle)
 	mv.width = float64(size.Width)
 	mv.height = float64(size.Height)
-	mv.text.Move(fyne.Position{X: float32(cx), Y: float32(cy)})
+}
+
+func (mv *MoverText) position() {
+	px, py := mv.textPosition()
+	mv.text.Move(fyne.Position{X: float32(px), Y: float32(py)})
 }
