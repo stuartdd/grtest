@@ -9,13 +9,14 @@ import (
 )
 
 type MoverCircle struct {
-	speedx  float64
-	speedy  float64
-	centerx float64
-	centery float64
-	width   float64
-	height  float64
-	circle  *canvas.Circle
+	speedx     float64
+	speedy     float64
+	centerx    float64
+	centery    float64
+	width      float64
+	height     float64
+	circle     *canvas.Circle
+	shouldMove func(float64, float64, float64, float64) bool
 }
 
 /*
@@ -53,10 +54,14 @@ func (mv *MoverCircle) IsVisible() bool {
 	return mv.circle.Visible()
 }
 
+func (mv *MoverCircle) SetShouldMove(f func(float64, float64, float64, float64) bool) {
+	mv.shouldMove = f
+}
+
 func (mv *MoverCircle) Update(time float64) {
 	dx := mv.speedx * time
 	dy := mv.speedy * time
-	if (dx != 0) || (dy != 0) {
+	if (mv.shouldMove != nil && mv.shouldMove(mv.centerx, mv.centery, dx, dy)) || mv.shouldMove == nil {
 		mv.centerx = mv.centerx + dx
 		mv.centery = mv.centery + dy
 		mv.circle.Position1.X = float32(mv.centerx - (mv.width / 2))

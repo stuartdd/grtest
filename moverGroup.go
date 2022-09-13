@@ -12,6 +12,7 @@ type MoverGroup struct {
 	currentAng int
 	accAng     float64
 	speedAng   float64
+	shouldMove func(float64, float64, float64, float64) bool
 }
 
 /*
@@ -47,6 +48,10 @@ func (mv *MoverGroup) IsVisible() bool {
 func (mv *MoverGroup) Add(mover Movable) {
 	mv.movers = append(mv.movers, mover)
 	mover.SetSpeed(mv.movers[0].GetSpeed())
+}
+
+func (mv *MoverGroup) SetShouldMove(f func(float64, float64, float64, float64) bool) {
+	mv.shouldMove = f
 }
 
 func (mv *MoverGroup) Update(time float64) {

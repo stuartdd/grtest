@@ -13,8 +13,9 @@ type MoverImage struct {
 	centerx float64
 	centery float64
 
-	imageSize fyne.Size
-	image     *canvas.Image
+	imageSize  fyne.Size
+	image      *canvas.Image
+	shouldMove func(float64, float64, float64, float64) bool
 }
 
 /*
@@ -51,10 +52,14 @@ func (mv *MoverImage) IsVisible() bool {
 	return mv.image.Visible()
 }
 
+func (mv *MoverImage) SetShouldMove(f func(float64, float64, float64, float64) bool) {
+	mv.shouldMove = f
+}
+
 func (mv *MoverImage) Update(time float64) {
 	dx := mv.speedx * time
 	dy := mv.speedy * time
-	if (dx != 0) || (dy != 0) {
+	if (mv.shouldMove != nil && mv.shouldMove(mv.centerx, mv.centery, dx, dy)) || mv.shouldMove == nil {
 		mv.centerx = mv.centerx + dx
 		mv.centery = mv.centery + dy
 		mv.image.Move(fyne.Position{X: float32(mv.centerx) - (mv.imageSize.Width / 2), Y: float32(mv.centery) - mv.imageSize.Height/2})

@@ -8,6 +8,11 @@ import (
 	"fyne.io/fyne/v2/container"
 )
 
+var (
+	player    Movable
+	textStyle = fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2}
+)
+
 /*
 -------------------------------------------------------------------- main
 */
@@ -23,7 +28,7 @@ func main() {
 	container := container.New(controller)
 	controller.SetContainer(container)
 
-	mainPOC(mainWindow, controller)
+	mainPOClots(mainWindow, controller)
 
 	mainWindow.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
 		controller.KeyPress(key)

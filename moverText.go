@@ -8,14 +8,15 @@ import (
 )
 
 type MoverText struct {
-	speedx    float64
-	speedy    float64
-	positionx float64
-	centery   float64
-	width     float64
-	height    float64
-	text      *canvas.Text
-	align     fyne.TextAlign
+	speedx     float64
+	speedy     float64
+	positionx  float64
+	centery    float64
+	width      float64
+	height     float64
+	text       *canvas.Text
+	align      fyne.TextAlign
+	shouldMove func(float64, float64, float64, float64) bool
 }
 
 /*
@@ -33,10 +34,18 @@ func (mv *MoverText) String() string {
 	return fmt.Sprintf("Text t:%s pos:%.3f y:%.3f w:%.3f h:%.3f", mv.text.Text, mv.positionx, mv.centery, mv.width, mv.height)
 }
 
+func (mv *MoverText) SetShouldMove(f func(float64, float64, float64, float64) bool) {
+	mv.shouldMove = f
+}
+
 func (mv *MoverText) Update(time float64) {
-	mv.positionx = mv.positionx + (mv.speedx * time)
-	mv.centery = mv.centery + (mv.speedy * time)
-	mv.moveToPosition()
+	dx := mv.speedx * time
+	dy := mv.speedy * time
+	if (mv.shouldMove != nil && mv.shouldMove(mv.positionx, mv.centery, dx, dy)) || mv.shouldMove == nil {
+		mv.positionx = mv.positionx + dx
+		mv.centery = mv.centery + dy
+		mv.moveToPosition()
+	}
 }
 
 func (mv *MoverText) ContainsAny(p *Points) bool {

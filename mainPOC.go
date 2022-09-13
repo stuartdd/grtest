@@ -8,11 +8,6 @@ import (
 	"fyne.io/fyne/v2/canvas"
 )
 
-var (
-	player    Movable
-	textStyle = fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2}
-)
-
 func keyPressed(key *fyne.KeyEvent) {
 	sx, sy := player.GetCenter()
 	switch key.Name {

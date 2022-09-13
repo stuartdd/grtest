@@ -21,6 +21,7 @@ type MoverLines struct {
 	centerx    float64
 	centery    float64
 	lines      []*canvas.Line
+	shouldMove func(float64, float64, float64, float64) bool
 }
 
 /*
@@ -64,6 +65,10 @@ func (mv *MoverLines) SetVisible(v bool) {
 
 func (mv *MoverLines) IsVisible() bool {
 	return mv.lines[0].Visible()
+}
+
+func (mv *MoverLines) SetShouldMove(f func(float64, float64, float64, float64) bool) {
+	mv.shouldMove = f
 }
 
 func (mv *MoverLines) Update(time float64) {

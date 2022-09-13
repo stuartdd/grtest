@@ -8,6 +8,20 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
+type Quad int
+
+const (
+	LEFT Quad = iota
+	RIGHT
+	UP
+	DOWN
+	LEFT_UP
+	LEFT_DOWN
+	RIGHT_UP
+	RIGHT_DOWN
+	INSIDE
+)
+
 type SizeAndCenter struct {
 	Width   float64
 	Height  float64
@@ -97,6 +111,42 @@ func (bb *Bounds) Inside(x, y float64) bool {
 		return true
 	}
 	return false
+}
+
+func (bb *Bounds) Outside(x, y float64) Quad {
+	if x < bb.x1 {
+		// Left
+		if y < bb.y1 {
+			// left up
+			return LEFT_UP
+		}
+		if y > bb.y2 {
+			// left down
+			return LEFT_DOWN
+		}
+		return LEFT
+	}
+	if x > bb.x2 {
+		// right
+		if y < bb.y1 {
+			// right up
+			return RIGHT_UP
+		}
+		if y > bb.y2 {
+			// right down
+			return RIGHT_DOWN
+		}
+		return RIGHT
+	}
+	if y < bb.y1 {
+		// right up
+		return UP
+	}
+	if y > bb.y2 {
+		// right down
+		return DOWN
+	}
+	return INSIDE
 }
 
 func (bb *Bounds) ContainsAny(p *Points) bool {
