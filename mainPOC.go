@@ -6,6 +6,12 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+)
+
+var (
+	player    Movable
+	textStyle = fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2}
 )
 
 func keyPressed(key *fyne.KeyEvent) {
@@ -25,7 +31,8 @@ func keyPressed(key *fyne.KeyEvent) {
 /*
 -------------------------------------------------------------------- main
 */
-func mainPOC(mainWindow fyne.Window, controller *ControllerLayout) {
+func mainPOC(mainWindow fyne.Window, controller *MoverController) *fyne.Container {
+	cont := container.New(NewStaticLayout(500, 500))
 
 	player = NewMoverImage(100, 100, 40, 40, canvas.NewImageFromResource(Lander_Png))
 	player.SetSpeed(15, 15)
@@ -65,23 +72,23 @@ func mainPOC(mainWindow fyne.Window, controller *ControllerLayout) {
 	/*
 		Add Movers that are managed directly by the controller
 	*/
-	controller.AddMover(circ1)
-	controller.AddMover(player)
-	controller.AddMover(group1)
-	controller.AddMover(text1)
-	controller.AddMover(text2)
-	controller.AddMover(text3)
+	controller.AddMover(circ1, cont)
+	controller.AddMover(player, cont)
+	controller.AddMover(group1, cont)
+	controller.AddMover(text1, cont)
+	controller.AddMover(text2, cont)
+	controller.AddMover(text3, cont)
 	/*
 		Add Movers that are *NOT* managed directly by the controller
 	*/
-	controller.AddToContainer(guideLine.GetCanvasObject())
-	controller.AddToContainer(bBoxf1.GetCanvasObject())
-	controller.AddToContainer(bBoxf2.GetCanvasObject())
-	controller.AddToContainer(bBoxf3.GetCanvasObject())
-	controller.AddToContainer(bBox2.GetCanvasObject())
-	controller.AddToContainer(bBox3.GetCanvasObject())
-	controller.AddToContainer(bBox4.GetCanvasObject())
-	controller.AddToContainer(bBox5.GetCanvasObject())
+	guideLine.UpdateContainerWithObjects(cont)
+	bBoxf1.UpdateContainerWithObjects(cont)
+	bBoxf2.UpdateContainerWithObjects(cont)
+	bBoxf3.UpdateContainerWithObjects(cont)
+	bBox2.UpdateContainerWithObjects(cont)
+	bBox3.UpdateContainerWithObjects(cont)
+	bBox4.UpdateContainerWithObjects(cont)
+	bBox5.UpdateContainerWithObjects(cont)
 
 	controller.SetOnKeyPress(func(key *fyne.KeyEvent) {
 		keyPressed(key)
@@ -149,6 +156,7 @@ func mainPOC(mainWindow fyne.Window, controller *ControllerLayout) {
 			}
 		}
 	}()
+	return cont
 }
 
 func setPoints(group *MoverGroup, mv Movable) {

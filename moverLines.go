@@ -7,7 +7,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
 )
 
 type MoverLines struct {
@@ -118,12 +117,10 @@ func (mv *MoverLines) Update(time float64) {
 	mv.centery = mv.centery + float64(dy)
 }
 
-func (mv *MoverLines) GetCanvasObject() fyne.CanvasObject {
-	container := container.New(&ControllerLayout{})
+func (mv *MoverLines) UpdateContainerWithObjects(cont *fyne.Container) {
 	for _, l := range mv.lines {
-		container.Add(l)
+		cont.Add(l)
 	}
-	return container
 }
 
 func (mv *MoverLines) GetAngle() int {

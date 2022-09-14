@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 )
 
 var (
@@ -15,13 +16,15 @@ var (
 /*
 -------------------------------------------------------------------- main
 */
-func mainPOClots(mainWindow fyne.Window, controller *ControllerLayout) {
+func mainPOClots(mainWindow fyne.Window, controller *MoverController) *fyne.Container {
+	cw := controller.width
+	ch := controller.height
+	cont := container.New(NewStaticLayout(cw, ch))
+
 	for i := 0; i < 2000; i++ {
-		x := rand.Float64() * 400
-		y := rand.Float64() * 400
-		c := NewMoverCircle(nil, color.RGBA{255, 0, 0, 255}, 50+x, 50+y, 5, 5)
-		c.SetSpeed(rnd(), rnd())
-		controller.AddMover(c)
+		c := NewMoverCircle(nil, color.RGBA{255, 0, 0, 255}, rndPos(35, cw-40), rndPos(35, ch-40), 5, 5)
+		c.SetSpeed(rndSpeed(10, 50), rndSpeed(10, 50))
+		controller.AddMover(c, cont)
 		c.SetShouldMove(shouldMove)
 	}
 
@@ -42,14 +45,18 @@ func mainPOClots(mainWindow fyne.Window, controller *ControllerLayout) {
 			time.Sleep(time.Second)
 		}
 	}()
-
+	return cont
 }
 
-func rnd() float64 {
+func rndSpeed(min, max float64) float64 {
 	if rand.Float64() > 0.5 {
-		return -(50 + rand.Float64()*50)
+		return -(min + rand.Float64()*(max-min))
 	}
-	return (50 + rand.Float64()*50)
+	return min + rand.Float64()*(max-min)
+}
+
+func rndPos(min, max float64) float64 {
+	return min + (rand.Float64() * (max - min))
 }
 
 func shouldMove(m Movable, dx, dy float64) bool {

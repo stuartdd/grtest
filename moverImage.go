@@ -66,8 +66,8 @@ func (mv *MoverImage) Update(time float64) {
 	}
 }
 
-func (mv *MoverImage) GetCanvasObject() fyne.CanvasObject {
-	return mv.image
+func (mv *MoverImage) UpdateContainerWithObjects(cont *fyne.Container) {
+	cont.Add(mv.image)
 }
 
 func (mv *MoverImage) GetSizeAndCenter() *SizeAndCenter {

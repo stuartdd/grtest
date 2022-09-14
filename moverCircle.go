@@ -71,8 +71,8 @@ func (mv *MoverCircle) Update(time float64) {
 	}
 }
 
-func (mv *MoverCircle) GetCanvasObject() fyne.CanvasObject {
-	return mv.circle
+func (mv *MoverCircle) UpdateContainerWithObjects(c *fyne.Container) {
+	c.Add(mv.circle)
 }
 
 func (mv *MoverCircle) GetSizeAndCenter() *SizeAndCenter {

@@ -5,12 +5,11 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
 )
 
 var (
-	player    Movable
-	textStyle = fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2}
+	mainContainer  *fyne.Container
+	mainController *MoverController
 )
 
 /*
@@ -24,33 +23,37 @@ func main() {
 	})
 	mainWindow.SetMaster()
 	mainWindow.SetIcon(GoLogo_Png)
-	controller := NewControllerContainer(1000, 1000)
-	container := container.New(controller)
-	controller.SetContainer(container)
 
-	mainPOClots(mainWindow, controller)
+	mainController = NewMoverController(1000, 1000)
+	mainContainer = mainPOClots(mainWindow, mainController)
 
 	mainWindow.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
-		controller.KeyPress(key)
+		// fmt.Println(key.Name)
+		if key.Name == "Escape" {
+			mainWindow.Close()
+		}
+		if key.Name == "F1" {
+			if mainController.GetAnimation() {
+				mainController.StopAnimation()
+			} else {
+				mainController.StartAnimation()
+			}
+
+		}
+		mainController.KeyPress(key)
 	})
 
-	mainWindow.SetContent(container)
-	an := startAnimation(controller)
-	mainWindow.ShowAndRun()
-	an.Stop()
-}
+	mainWindow.SetContent(mainContainer)
 
-func startAnimation(controller *ControllerLayout) *fyne.Animation {
-	var ft float32 = 0
-	an := &fyne.Animation{Duration: time.Duration(time.Second), RepeatCount: 1000000, Curve: fyne.AnimationLinear, Tick: func(f float32) {
-		controller.Update(float64(f - ft))
-		if f == 1.0 {
-			ft = 0
-		} else {
-			ft = f
+	go func() {
+		time.Sleep(time.Millisecond * 500)
+		mainController.StartAnimation()
+		for {
+			time.Sleep(time.Millisecond * 50)
+			mainContainer.Refresh()
 		}
-		controller.Refresh()
-	}}
-	an.Start()
-	return an
+	}()
+
+	mainWindow.ShowAndRun()
+	mainController.StopAnimation()
 }

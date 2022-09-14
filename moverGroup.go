@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 )
 
 type MoverGroup struct {
@@ -83,12 +82,10 @@ func (mv *MoverGroup) Update(time float64) {
 	}
 }
 
-func (mv *MoverGroup) GetCanvasObject() fyne.CanvasObject {
-	container := container.New(&ControllerLayout{})
+func (mv *MoverGroup) UpdateContainerWithObjects(c *fyne.Container) {
 	for _, m := range mv.movers {
-		container.Add(m.GetCanvasObject())
+		m.UpdateContainerWithObjects(c)
 	}
-	return container
 }
 
 func (mv *MoverGroup) GetSizeAndCenter() *SizeAndCenter {

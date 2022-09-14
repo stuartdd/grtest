@@ -1,7 +1,7 @@
 package main
 
 import (
-	"sync"
+	"time"
 
 	"fyne.io/fyne/v2"
 )
@@ -17,7 +17,7 @@ type Movable interface {
 	GetAngle() int
 	SetAngleSpeed(float64)
 	GetAngleSpeed() float64
-	GetCanvasObject() fyne.CanvasObject
+	UpdateContainerWithObjects(*fyne.Container)
 	GetSizeAndCenter() *SizeAndCenter
 	GetBounds() *Bounds
 	GetPoints() *Points
@@ -28,13 +28,14 @@ type Movable interface {
 	String() string
 }
 
-type ControllerLayout struct {
+type MoverController struct {
 	size      fyne.Size
+	width     float64
+	height    float64
 	movers    []Movable
-	container *fyne.Container
 	update    func(float64) bool
 	keyPress  func(*fyne.KeyEvent)
-	mu        sync.Mutex
+	animation *fyne.Animation
 }
 
 var _ Movable = (*MoverLines)(nil)
@@ -43,35 +44,44 @@ var _ Movable = (*MoverCircle)(nil)
 var _ Movable = (*MoverText)(nil)
 var _ Movable = (*MoverGroup)(nil)
 
+type StaticLayout struct {
+	size fyne.Size
+}
+
+func NewStaticLayout(w, h float64) *StaticLayout {
+	return &StaticLayout{size: fyne.Size{Width: float32(w), Height: float32(h)}}
+}
+
+func (sl *StaticLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	return sl.size
+}
+
+func (sl *StaticLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+}
+
 /*
--------------------------------------------------------------------- ControllerLayout
+-------------------------------------------------------------------- Controller
 */
-func NewControllerContainer(width, height float32) *ControllerLayout {
-	c := &ControllerLayout{size: fyne.Size{Width: width, Height: height}, movers: make([]Movable, 0)}
+func NewMoverController(width, height float64) *MoverController {
+	c := &MoverController{size: fyne.Size{Width: float32(width), Height: float32(height)}, width: width, height: height, movers: make([]Movable, 0)}
 	return c
 }
 
-func (cc *ControllerLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	cc.size = size
-}
-
-func (cc *ControllerLayout) KeyPress(key *fyne.KeyEvent) {
+func (cc *MoverController) KeyPress(key *fyne.KeyEvent) {
 	if cc.keyPress != nil {
 		cc.keyPress(key)
 	}
 }
 
-func (cc *ControllerLayout) SetOnKeyPress(keyPress func(*fyne.KeyEvent)) {
+func (cc *MoverController) SetOnKeyPress(keyPress func(*fyne.KeyEvent)) {
 	cc.keyPress = keyPress
 }
 
-func (cc *ControllerLayout) SetOnUpdate(update func(float64) bool) {
+func (cc *MoverController) SetOnUpdate(update func(float64) bool) {
 	cc.update = update
 }
 
-func (cc *ControllerLayout) Update(time float64) {
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
+func (cc *MoverController) Update(time float64) {
 	if cc.update != nil {
 		if !cc.update(time) {
 			return
@@ -82,33 +92,36 @@ func (cc *ControllerLayout) Update(time float64) {
 	}
 }
 
-func (cc *ControllerLayout) AddToContainer(co fyne.CanvasObject) {
-	if cc.container == nil {
-		panic("ControllerLayout requires a fyne.Container. Please use SetContainer(c)")
-	}
-	cc.container.Add(co)
-}
-
-func (cc *ControllerLayout) AddMover(m Movable) {
-	if cc.container == nil {
-		panic("ControllerLayout requires a fyne.Container. Please use SetContainer(c)")
-	}
+func (cc *MoverController) AddMover(m Movable, c *fyne.Container) {
 	cc.movers = append(cc.movers, m)
-	cc.container.Add(m.GetCanvasObject())
+	if c == nil {
+		return
+	}
+	m.UpdateContainerWithObjects(c)
 }
 
-func (cc *ControllerLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
-	return cc.size
+func (cc *MoverController) GetAnimation() bool {
+	return cc.animation != nil
 }
 
-func (cc *ControllerLayout) GetContainer() *fyne.Container {
-	return cc.container
+func (cc *MoverController) StopAnimation() {
+	if cc.animation != nil {
+		cc.animation.Stop()
+		cc.animation = nil
+	}
 }
 
-func (cc *ControllerLayout) SetContainer(container *fyne.Container) {
-	cc.container = container
-}
+func (cc *MoverController) StartAnimation() {
+	cc.StopAnimation()
 
-func (cc *ControllerLayout) Refresh() {
-	cc.container.Refresh()
+	var ft float32 = 0
+	cc.animation = &fyne.Animation{Duration: time.Duration(time.Second), RepeatCount: 1000000, Curve: fyne.AnimationLinear, Tick: func(f float32) {
+		cc.Update(float64(f - ft))
+		if f == 1.0 {
+			ft = 0
+		} else {
+			ft = f
+		}
+	}}
+	cc.animation.Start()
 }

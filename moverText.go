@@ -67,8 +67,8 @@ func (mv *MoverText) IsVisible() bool {
 	return mv.text.Visible()
 }
 
-func (mv *MoverText) GetCanvasObject() fyne.CanvasObject {
-	return mv.text
+func (mv *MoverText) UpdateContainerWithObjects(cont *fyne.Container) {
+	cont.Add(mv.text)
 }
 
 func (mv *MoverText) GetSizeAndCenter() *SizeAndCenter {
