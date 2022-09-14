@@ -24,7 +24,7 @@ func main() {
 	})
 	mainWindow.SetMaster()
 	mainWindow.SetIcon(GoLogo_Png)
-	controller := NewControllerContainer(500, 500)
+	controller := NewControllerContainer(1000, 1000)
 	container := container.New(controller)
 	controller.SetContainer(container)
 
@@ -33,6 +33,7 @@ func main() {
 	mainWindow.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
 		controller.KeyPress(key)
 	})
+
 	mainWindow.SetContent(container)
 	an := startAnimation(controller)
 	mainWindow.ShowAndRun()

@@ -41,6 +41,30 @@ type Points struct {
 	y []float64
 }
 
+func QuadString(q Quad) string {
+	switch q {
+	case LEFT:
+		return "LEFT"
+	case RIGHT:
+		return "RIGHT"
+	case UP:
+		return "UP"
+	case DOWN:
+		return "DOWN"
+	case LEFT_DOWN:
+		return "LEFT+DOWN"
+	case LEFT_UP:
+		return "LEFT+UP"
+	case RIGHT_DOWN:
+		return "RIGHT+DOWN"
+	case RIGHT_UP:
+		return "RIGHT+UP"
+	case INSIDE:
+		return "INSIDE"
+	}
+	return "UNKNOWN"
+}
+
 func MeasureString(text string) fyne.Size {
 	ts := fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2}
 	si := fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameText)
@@ -87,6 +111,10 @@ func (bb *Bounds) Size() fyne.Size {
 
 func (bb *Bounds) Center() fyne.Position {
 	return fyne.Position{X: float32(bb.x1 + (bb.x2-bb.x1)/2), Y: float32(bb.y1 + (bb.y2-bb.y1)/2)}
+}
+
+func (bb *Bounds) Equal(aa *Bounds) bool {
+	return (bb.x1 == aa.x1 && bb.x2 == aa.x2 && bb.y1 == aa.y1 && bb.y2 == aa.y2)
 }
 
 func (bb *Bounds) Points() *Points {

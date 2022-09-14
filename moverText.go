@@ -16,7 +16,7 @@ type MoverText struct {
 	height     float64
 	text       *canvas.Text
 	align      fyne.TextAlign
-	shouldMove func(float64, float64, float64, float64) bool
+	shouldMove func(Movable, float64, float64) bool
 }
 
 /*
@@ -34,14 +34,14 @@ func (mv *MoverText) String() string {
 	return fmt.Sprintf("Text t:%s pos:%.3f y:%.3f w:%.3f h:%.3f", mv.text.Text, mv.positionx, mv.centery, mv.width, mv.height)
 }
 
-func (mv *MoverText) SetShouldMove(f func(float64, float64, float64, float64) bool) {
+func (mv *MoverText) SetShouldMove(f func(Movable, float64, float64) bool) {
 	mv.shouldMove = f
 }
 
 func (mv *MoverText) Update(time float64) {
 	dx := mv.speedx * time
 	dy := mv.speedy * time
-	if (mv.shouldMove != nil && mv.shouldMove(mv.positionx, mv.centery, dx, dy)) || mv.shouldMove == nil {
+	if mv.shouldMove == nil || (mv.shouldMove != nil && mv.shouldMove(mv, dx, dy)) {
 		mv.positionx = mv.positionx + dx
 		mv.centery = mv.centery + dy
 		mv.moveToPosition()

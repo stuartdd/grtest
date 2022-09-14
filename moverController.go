@@ -8,7 +8,7 @@ import (
 
 type Movable interface {
 	Update(float64)
-	SetShouldMove(f func(float64, float64, float64, float64) bool)
+	SetShouldMove(f func(Movable, float64, float64) bool)
 	SetCenter(float64, float64)
 	GetCenter() (float64, float64)
 	SetSpeed(float64, float64)

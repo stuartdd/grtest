@@ -16,7 +16,7 @@ type MoverCircle struct {
 	width      float64
 	height     float64
 	circle     *canvas.Circle
-	shouldMove func(float64, float64, float64, float64) bool
+	shouldMove func(Movable, float64, float64) bool
 }
 
 /*
@@ -54,14 +54,14 @@ func (mv *MoverCircle) IsVisible() bool {
 	return mv.circle.Visible()
 }
 
-func (mv *MoverCircle) SetShouldMove(f func(float64, float64, float64, float64) bool) {
+func (mv *MoverCircle) SetShouldMove(f func(Movable, float64, float64) bool) {
 	mv.shouldMove = f
 }
 
 func (mv *MoverCircle) Update(time float64) {
 	dx := mv.speedx * time
 	dy := mv.speedy * time
-	if (mv.shouldMove != nil && mv.shouldMove(mv.centerx, mv.centery, dx, dy)) || mv.shouldMove == nil {
+	if mv.shouldMove == nil || (mv.shouldMove != nil && mv.shouldMove(mv, dx, dy)) {
 		mv.centerx = mv.centerx + dx
 		mv.centery = mv.centery + dy
 		mv.circle.Position1.X = float32(mv.centerx - (mv.width / 2))
@@ -114,6 +114,10 @@ func (mv *MoverCircle) SetSize(size fyne.Size) {
 	mv.circle.Position2.Y = float32(mv.centery + (mv.height / 2))
 }
 
+func (mv *MoverCircle) GetCenter() (float64, float64) {
+	return mv.centerx, mv.centery
+}
+
 func (mv *MoverCircle) SetCenter(x, y float64) {
 	mv.centerx = x
 	mv.centery = y
@@ -128,6 +132,10 @@ func (mv *MoverCircle) SetSpeed(x, y float64) {
 	mv.speedy = y
 }
 
+func (mv *MoverCircle) GetSpeed() (float64, float64) {
+	return mv.speedx, mv.speedy
+}
+
 func (mv *MoverCircle) SetAngle(a int) {
 }
 
@@ -140,12 +148,4 @@ func (mv *MoverCircle) SetAngleSpeed(as float64) {
 
 func (mv *MoverCircle) GetAngleSpeed() float64 {
 	return 0
-}
-
-func (mv *MoverCircle) GetCenter() (float64, float64) {
-	return mv.centerx, mv.centery
-}
-
-func (mv *MoverCircle) GetSpeed() (float64, float64) {
-	return mv.speedx, mv.speedy
 }
