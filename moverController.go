@@ -100,7 +100,7 @@ func (cc *MoverController) AddMover(m Movable, c *fyne.Container) {
 	m.UpdateContainerWithObjects(c)
 }
 
-func (cc *MoverController) GetAnimation() bool {
+func (cc *MoverController) IsAnimation() bool {
 	return cc.animation != nil
 }
 

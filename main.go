@@ -25,7 +25,7 @@ func main() {
 	mainWindow.SetIcon(GoLogo_Png)
 
 	mainController = NewMoverController(1000, 1000)
-	mainContainer = mainPOClots(mainWindow, mainController)
+	mainContainer = mainPOCLife(mainWindow, mainController)
 
 	mainWindow.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
 		// fmt.Println(key.Name)
@@ -33,7 +33,7 @@ func main() {
 			mainWindow.Close()
 		}
 		if key.Name == "F1" {
-			if mainController.GetAnimation() {
+			if mainController.IsAnimation() {
 				mainController.StopAnimation()
 			} else {
 				mainController.StartAnimation()
@@ -42,7 +42,6 @@ func main() {
 		}
 		mainController.KeyPress(key)
 	})
-
 	mainWindow.SetContent(mainContainer)
 
 	go func() {
