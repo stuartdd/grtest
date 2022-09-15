@@ -1,9 +1,31 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
+
+func TestLifeRLE(t *testing.T) {
+	rle := ReadRleFile("rats.rle")
+	assertStr(t, "$rats", rle.name)
+	assertStr(t, "David Buckingham", rle.owner)
+	assertStr(t, "rats.rle", rle.fileName)
+	assertStr(t, "www.conwaylife.com/wiki/index.php?title=$rats", rle.comment)
+	if len(rle.decoded) != 319 {
+		t.Errorf("TestRle: Expected len(decoded):%d actual len(decoded):%d", 64, len(rle.decoded))
+	}
+	if len(rle.coords) != 64 {
+		t.Errorf("TestRle: Expected len(coords):%d actual len(coords):%d", 64, len(rle.coords))
+	}
+	fmt.Println(rle)
+}
+
+func assertStr(t *testing.T, exp, act string) {
+	if exp != act {
+		t.Errorf("TestRle: Expected '%s' actual '%s'", exp, act)
+	}
+}
 
 func TestLifeGenCountCells(t *testing.T) {
 	lg := NewLifeGen()

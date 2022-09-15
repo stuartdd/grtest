@@ -1,8 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"log"
+	"os"
+	"strconv"
 	"strings"
+	"unicode"
 )
 
 type LifeCell struct {
@@ -13,6 +18,15 @@ type LifeCell struct {
 type LifeGen struct {
 	generations []*LifeCell
 	currentGen  int
+}
+
+type RLE struct {
+	fileName string
+	decoded  string
+	coords   []int
+	name     string
+	owner    string
+	comment  string
 }
 
 var (
@@ -131,4 +145,109 @@ func (lg *LifeGen) Short() string {
 		c = c.next
 	}
 	return sb.String()
+}
+
+func ReadRleFile(fileName string) *RLE {
+	file, err := os.Open(fileName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	rle := &RLE{fileName: fileName}
+	scanner := bufio.NewScanner(file)
+	var sb strings.Builder
+	ln := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "#N") {
+			rle.name = strings.TrimSpace(line[2:])
+		} else {
+			if strings.HasPrefix(line, "#C") {
+				rle.comment = strings.TrimSpace(line[2:])
+			} else {
+				if strings.HasPrefix(line, "#O") {
+					rle.owner = strings.TrimSpace(line[2:])
+				} else {
+					if !strings.HasPrefix(line, "#") {
+						if ln > 0 {
+							sb.WriteString(line)
+						}
+						ln++
+					}
+				}
+			}
+		}
+	}
+	rle.decoded, rle.coords = rleDecodeString(sb.String())
+	if scanner.Err() != nil {
+		log.Println(scanner.Err())
+	}
+	return rle
+}
+
+func (rle *RLE) String() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Owner  :%s\n", rle.owner))
+	sb.WriteString(fmt.Sprintf("Name   :%s\n", rle.name))
+	sb.WriteString(fmt.Sprintf("File   :%s\n", rle.fileName))
+	sb.WriteString(fmt.Sprintf("Comment:%s\n", rle.comment))
+	for i := 0; i < len(rle.coords); i = i + 2 {
+		sb.WriteString(fmt.Sprintf("%3d, %3d ", rle.coords[i], rle.coords[i+1]))
+	}
+	sb.WriteString("\n")
+	sb.WriteString(fmt.Sprintf("%s\n", rle.decoded))
+	return sb.String()
+}
+
+func rleDecodeString(rleStr string) (string, []int) {
+	var result strings.Builder
+	for len(rleStr) > 0 {
+		letterIndex := strings.IndexFunc(rleStr, func(r rune) bool { return !unicode.IsDigit(r) })
+		multiply := 1
+		if letterIndex != 0 {
+			multiply, _ = strconv.Atoi(rleStr[:letterIndex])
+		}
+		result.WriteString(strings.Repeat(string(rleStr[letterIndex]), multiply))
+		rleStr = rleStr[letterIndex+1:]
+	}
+	out := result.String()
+
+	var sb strings.Builder
+	coords := make([]int, 0)
+	count := 0
+	width := 0
+	y := 0
+	x := 0
+	sb.WriteString(fmt.Sprintf("%03d", y))
+	for _, c := range out {
+		switch c {
+		case '$':
+			y++
+			x = 0
+			if count == 0 {
+				for i := 0; i <= width; i++ {
+					sb.WriteString("| ")
+				}
+				sb.WriteString(fmt.Sprintf("\n%03d", y))
+			} else {
+				sb.WriteString(fmt.Sprintf("|\n%03d", y))
+				width = count
+			}
+			count = 0
+		case 'b':
+			sb.WriteString("| ")
+			count++
+			x++
+		case 'o':
+			coords = append(coords, x)
+			coords = append(coords, y)
+			sb.WriteString("|O")
+			count++
+			x++
+		case '!':
+			for i := 0; i <= (width - count); i++ {
+				sb.WriteString("| ")
+			}
+		}
+	}
+	return sb.String(), coords
 }
