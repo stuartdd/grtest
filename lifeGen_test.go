@@ -7,12 +7,13 @@ import (
 )
 
 func TestLifeRLE(t *testing.T) {
-	rle := ReadRleFile("rats.rle")
+	rle := &RLE{}
+	rle.Load("testdata/rats.rle")
 	assertStr(t, "$rats", rle.name)
 	assertStr(t, "David Buckingham", rle.owner)
-	assertStr(t, "rats.rle", rle.fileName)
+	assertStr(t, "testdata/rats.rle", rle.fileName)
 	assertStr(t, "www.conwaylife.com/wiki/index.php?title=$rats", rle.comment)
-	if len(rle.decoded) != 319 {
+	if len(rle.decoded) != 286 {
 		t.Errorf("TestRle: Expected len(decoded):%d actual len(decoded):%d", 64, len(rle.decoded))
 	}
 	if len(rle.coords) != 64 {
