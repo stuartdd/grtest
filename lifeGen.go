@@ -17,6 +17,10 @@ type LifeCell struct {
 	next *LifeCell
 }
 
+type LifeDeadCells struct {
+	root *LifeCell
+}
+
 type LifeGen struct {
 	generations     []*LifeCell
 	currentGenId    LifeGenId
@@ -44,6 +48,15 @@ var (
 	generations []*LifeCell
 )
 
+func (ldc *LifeDeadCells) Add(x, y int) {
+	t := ldc.root
+	ldc.root = &LifeCell{x: x, y: y, next: t}
+}
+
+func (ldc *LifeDeadCells) Root() *LifeCell {
+	return ldc.root
+}
+
 func (lc *LifeCell) id() int64 {
 	return int64(lc.x)*100000000 + int64(lc.y)
 }
@@ -68,6 +81,7 @@ func (lg *LifeGen) NextGen() {
 	time.Sleep(time.Millisecond * 100)
 
 	//
+	deadCells := &LifeDeadCells{}
 	count := 0
 	gen1 := lg.CurrentGenId()
 	gen2 := lg.NextGenId()
@@ -75,7 +89,7 @@ func (lg *LifeGen) NextGen() {
 	for c != nil {
 		x := c.x
 		y := c.y
-		i := lg.CountNear(x, y)
+		i := lg.CountNear(x, y, deadCells)
 		if i == 2 || i == 3 {
 			lg.AddCell(x, y, gen2)
 			count++
@@ -107,19 +121,19 @@ func (lg *LifeGen) CurrentGenRoot() *LifeCell {
 	return lg.generations[lg.currentGenId]
 }
 
-func (lg *LifeGen) CountNear(x, y int) int {
-	count := lg.GetCell(x-1, y-1)
-	count = count + lg.GetCell(x-1, y)
-	count = count + lg.GetCell(x-1, y+1)
-	count = count + lg.GetCell(x, y-1)
-	count = count + lg.GetCell(x, y+1)
-	count = count + lg.GetCell(x+1, y-1)
-	count = count + lg.GetCell(x+1, y)
-	count = count + lg.GetCell(x+1, y+1)
+func (lg *LifeGen) CountNear(x, y int, deadCells *LifeDeadCells) int {
+	count := lg.GetCell(x-1, y-1, deadCells)
+	count = count + lg.GetCell(x-1, y, deadCells)
+	count = count + lg.GetCell(x-1, y+1, deadCells)
+	count = count + lg.GetCell(x, y-1, deadCells)
+	count = count + lg.GetCell(x, y+1, deadCells)
+	count = count + lg.GetCell(x+1, y-1, deadCells)
+	count = count + lg.GetCell(x+1, y, deadCells)
+	count = count + lg.GetCell(x+1, y+1, deadCells)
 	return count
 }
 
-func (lg *LifeGen) GetCell(x, y int) int {
+func (lg *LifeGen) GetCell(x, y int, deadCells *LifeDeadCells) int {
 	f := &LifeCell{x: x, y: y}
 	c := generations[lg.currentGenId]
 	for c != nil {
@@ -127,9 +141,15 @@ func (lg *LifeGen) GetCell(x, y int) int {
 			return 1
 		}
 		if c.id() > f.id() {
+			if deadCells != nil {
+				deadCells.Add(x, y)
+			}
 			return 0
 		}
 		c = c.next
+	}
+	if deadCells != nil {
+		deadCells.Add(x, y)
 	}
 	return 0
 }

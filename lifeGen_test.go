@@ -114,14 +114,14 @@ func TestLifeGen(t *testing.T) {
 }
 
 func testGet(t *testing.T, lg *LifeGen, x, y, exp int) {
-	b := lg.GetCell(x, y)
+	b := lg.GetCell(x, y, nil)
 	if b != exp {
 		t.Errorf("TestGet: Expected '%d' actual '%d'", exp, b)
 	}
 }
 
 func testCountNear(t *testing.T, lg *LifeGen, x, y, exp int) {
-	b := lg.CountNear(x, y)
+	b := lg.CountNear(x, y, nil)
 	if b != exp {
 		t.Errorf("CountNear: Expected '%d' actual '%d'", exp, b)
 	}
