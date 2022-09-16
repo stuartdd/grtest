@@ -10,6 +10,8 @@ import (
 	"unicode"
 )
 
+type LifeGenId int
+
 type LifeCell struct {
 	x, y int
 	next *LifeCell
@@ -17,10 +19,11 @@ type LifeCell struct {
 
 type LifeGen struct {
 	generations     []*LifeCell
-	currentGen      int
+	currentGenId    LifeGenId
 	countGen        int
 	startTimeMillis int64
 	timeMillis      int64
+	cellCount       int
 }
 
 type RLE struct {
@@ -31,6 +34,11 @@ type RLE struct {
 	owner    string
 	comment  string
 }
+
+const (
+	LIFE_GEN_1 LifeGenId = 0
+	LIFE_GEN_2 LifeGenId = 1
+)
 
 var (
 	generations []*LifeCell
@@ -46,9 +54,9 @@ func (lc *LifeCell) String() string {
 
 func NewLifeGen() *LifeGen {
 	generations = make([]*LifeCell, 2)
-	generations[0] = nil
-	generations[1] = nil
-	return &LifeGen{generations: generations, currentGen: 0, startTimeMillis: 0, timeMillis: 0, countGen: 0}
+	generations[LIFE_GEN_1] = nil
+	generations[LIFE_GEN_2] = nil
+	return &LifeGen{generations: generations, currentGenId: LIFE_GEN_1, startTimeMillis: 0, timeMillis: 0, countGen: 0}
 }
 
 func (lg *LifeGen) NextGen() {
@@ -60,16 +68,43 @@ func (lg *LifeGen) NextGen() {
 	time.Sleep(time.Millisecond * 100)
 
 	//
-	//
+	count := 0
+	gen1 := lg.CurrentGenId()
+	gen2 := lg.NextGenId()
+	c := lg.CurrentGenRoot()
+	for c != nil {
+		x := c.x
+		y := c.y
+		i := lg.CountNear(x, y)
+		if i == 2 || i == 3 {
+			lg.AddCell(x, y, gen2)
+			count++
+		}
+		c = c.next
+	}
 	//
 
 	lg.countGen = lg.countGen + 1
 	lg.timeMillis = time.Now().UnixMilli() - lg.startTimeMillis
+	lg.cellCount = count
 	lg.startTimeMillis = 0
+	lg.currentGenId = gen2
+	generations[gen1] = nil
 }
 
-func (lg *LifeGen) CurrentGen() *LifeCell {
-	return lg.generations[lg.currentGen]
+func (lg *LifeGen) NextGenId() LifeGenId {
+	if lg.currentGenId == LIFE_GEN_1 {
+		return LIFE_GEN_2
+	}
+	return LIFE_GEN_1
+}
+
+func (lg *LifeGen) CurrentGenId() LifeGenId {
+	return lg.currentGenId
+}
+
+func (lg *LifeGen) CurrentGenRoot() *LifeCell {
+	return lg.generations[lg.currentGenId]
 }
 
 func (lg *LifeGen) CountNear(x, y int) int {
@@ -86,7 +121,7 @@ func (lg *LifeGen) CountNear(x, y int) int {
 
 func (lg *LifeGen) GetCell(x, y int) int {
 	f := &LifeCell{x: x, y: y}
-	c := generations[lg.currentGen]
+	c := generations[lg.currentGenId]
 	for c != nil {
 		if c.id() == f.id() {
 			return 1
@@ -99,29 +134,28 @@ func (lg *LifeGen) GetCell(x, y int) int {
 	return 0
 }
 
-func (lg *LifeGen) AddCells(c []int) {
+func (lg *LifeGen) AddCells(c []int, gen LifeGenId) {
 	for i := 0; i < len(c); i = i + 2 {
-		lg.AddCell(c[i], c[i+1])
+		lg.AddCell(c[i], c[i+1], gen)
 	}
 }
 
-func (lg *LifeGen) AddCell(x, y int) {
+func (lg *LifeGen) AddCell(x, y int, genId LifeGenId) {
 	c := &LifeCell{x: x, y: y, next: nil}
 	cid := c.id()
-	gen := lg.currentGen
-	if generations[gen] == nil {
-		generations[gen] = c
+	if generations[genId] == nil {
+		generations[genId] = c
 	} else {
 		var n *LifeCell
 		var p *LifeCell
 
-		n = generations[gen]
+		n = generations[genId]
 		p = nil
 		if n.id() == cid {
 			return
 		}
 		if n.id() > cid {
-			t := generations[gen]
+			t := generations[genId]
 			generations[0] = c
 			c.next = t
 			return
@@ -145,12 +179,12 @@ func (lg *LifeGen) AddCell(x, y int) {
 }
 
 func (lg *LifeGen) String() string {
-	c := generations[lg.currentGen]
+	c := generations[lg.currentGenId]
 	if c == nil {
 		return "None"
 	}
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Gen:%d\n", lg.currentGen))
+	sb.WriteString(fmt.Sprintf("Gen:%d\n", lg.currentGenId))
 	for c != nil {
 		sb.WriteString(fmt.Sprintf("X:%d Y:%d id:%s\n", c.x, c.y, c))
 		c = c.next
@@ -159,7 +193,7 @@ func (lg *LifeGen) String() string {
 }
 
 func (lg *LifeGen) Short() string {
-	c := generations[lg.currentGen]
+	c := generations[lg.currentGenId]
 	if c == nil {
 		return "None"
 	}
