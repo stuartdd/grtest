@@ -10,13 +10,14 @@ import (
 )
 
 var (
-	dots     []*canvas.Circle = make([]*canvas.Circle, 0)
-	dotsPos  int              = 0
-	gridSize float32          = 5
-	lifeGen  *LifeGen         = NewLifeGen()
-	xOffset  float32          = 100
-	yOffset  float32          = 100
-	genColor []color.Color    = []color.Color{color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}}
+	dots      []*canvas.Circle = make([]*canvas.Circle, 0)
+	dotsPos   int              = 0
+	gridSize  float32          = 4
+	lifeGen   *LifeGen
+	xOffset   float32       = 10
+	yOffset   float32       = 10
+	genColor  []color.Color = []color.Color{color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}}
+	countDots int           = 0
 )
 
 /*
@@ -26,43 +27,44 @@ func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Cont
 	cw := controller.width
 	ch := controller.height
 	rle := &RLE{}
-	err := rle.Load("testdata/rats.rle")
+	err := rle.Load("testdata/reactions.rle")
 	if err != nil {
 		panic(err.Error())
 	}
 	cont := container.New(NewStaticLayout(cw, ch))
 	coords := rle.coords
-	lifeGen.AddCells(coords, lifeGen.CurrentGenId())
-	timeText := NewMoverText("Time:", 10, 10, 10, fyne.TextAlignLeading)
+	timeText := NewMoverText("Time:", 10, 10, 20, fyne.TextAlignLeading)
 
-	controller.SetOnUpdate(func(f float64) bool {
-		timeText.SetText(fmt.Sprintf("Time: %05d Gen: %05d Cells:%05d", lifeGen.timeMillis, lifeGen.countGen, lifeGen.cellCount))
-		go lifeGen.NextGen()
+	lifeGen = NewLifeGen(nil)
+
+	lifeGen.AddCells(coords, lifeGen.CurrentGenId())
+	controller.AddOnUpdate(func(f float64) bool {
+		lifeGen.NextGen()
 		LifeResetDot()
-		cell := lifeGen.CurrentGenRoot()
+		countDots = 0
 		gen := lifeGen.currentGenId
+
+		cell := lifeGen.CurrentGenRoot()
 		for cell != nil {
-			LifeGetDot(float32(cell.x), float32(cell.y), xOffset+(float32(gen)*100), yOffset+(float32(gen)*100), lifeGen.currentGenId, cont)
+			LifeGetDot(float32(cell.x), float32(cell.y), xOffset, yOffset, gen, cont)
 			cell = cell.next
+			countDots++
 		}
-		LifeHideDot()
+		timeText.SetText(fmt.Sprintf("Time: %05d Gen: %05d Cells:%05d DOTS:%d", lifeGen.timeMillis, lifeGen.countGen, lifeGen.cellCount[lifeGen.currentGenId], countDots))
 		return false
 	})
 	controller.AddMover(timeText, cont)
 	return cont
 }
 
-func LifeHideDot() {
-	for i := dotsPos; i < len(dots); i++ {
-		dots[dotsPos].Hide()
+func LifeResetDot() {
+	dotsPos = 0
+	for i := 0; i < len(dots); i++ {
+		dots[i].Hide()
 	}
 }
 
-func LifeResetDot() {
-	dotsPos = 0
-}
-
-func LifeGetDot(x, y, xOfs, yOfs float32, gen LifeGenId, container *fyne.Container) *canvas.Circle {
+func LifeGetDot(x, y, xOfs, yOfs float32, gen LifeGenId, container *fyne.Container) {
 	if dotsPos >= len(dots) {
 		for i := 0; i < 20; i++ {
 			d := canvas.NewCircle(color.RGBA{0, 0, 255, 255})
@@ -75,7 +77,7 @@ func LifeGetDot(x, y, xOfs, yOfs float32, gen LifeGenId, container *fyne.Contain
 	dotsPos++
 	dot.Position1 = fyne.Position{X: xOfs + (x * gridSize), Y: yOfs + (y * gridSize)}
 	dot.Position2 = fyne.Position{X: xOfs + ((x * gridSize) + gridSize), Y: yOfs + ((y * gridSize) + gridSize)}
-	dot.FillColor = genColor[gen]
+	dot.FillColor = genColor[1]
 	dot.Show()
-	return dot
+
 }

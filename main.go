@@ -26,7 +26,7 @@ func main() {
 
 	mainController = NewMoverController(1000, 1000)
 	mainContainer = mainPOCLife(mainWindow, mainController)
-
+	desktop
 	mainWindow.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
 		// fmt.Println(key.Name)
 		if key.Name == "Escape" {
@@ -43,14 +43,18 @@ func main() {
 		mainController.KeyPress(key)
 	})
 	mainWindow.SetContent(mainContainer)
+	mainController.AddOnUpdate(func(f float64) bool {
+		mainContainer.Refresh()
+		return false
+	})
 
 	go func() {
 		time.Sleep(time.Millisecond * 500)
-		mainController.StartAnimation()
-		for {
-			time.Sleep(time.Millisecond * 50)
-			mainContainer.Refresh()
-		}
+		mainController.InitAnimationController(50, nil)
+		// for {
+		// 	time.Sleep(time.Millisecond * 200)
+		// 	mainContainer.Refresh()
+		// }
 	}()
 
 	mainWindow.ShowAndRun()

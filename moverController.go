@@ -28,14 +28,22 @@ type Movable interface {
 	String() string
 }
 
+type AnimationController struct {
+	fastAnimation *fyne.Animation
+	ft            float32
+	delay         int64
+	tick          func(*MoverController, *AnimationController, float32)
+	running       bool
+}
+
 type MoverController struct {
 	size      fyne.Size
 	width     float64
 	height    float64
 	movers    []Movable
-	update    func(float64) bool
+	update    []func(float64) bool
 	keyPress  func(*fyne.KeyEvent)
-	animation *fyne.Animation
+	animation *AnimationController
 }
 
 var _ Movable = (*MoverLines)(nil)
@@ -63,7 +71,7 @@ func (sl *StaticLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 -------------------------------------------------------------------- Controller
 */
 func NewMoverController(width, height float64) *MoverController {
-	c := &MoverController{size: fyne.Size{Width: float32(width), Height: float32(height)}, width: width, height: height, movers: make([]Movable, 0)}
+	c := &MoverController{size: fyne.Size{Width: float32(width), Height: float32(height)}, width: width, height: height, movers: make([]Movable, 0), update: make([]func(float64) bool, 0)}
 	return c
 }
 
@@ -77,13 +85,19 @@ func (cc *MoverController) SetOnKeyPress(keyPress func(*fyne.KeyEvent)) {
 	cc.keyPress = keyPress
 }
 
-func (cc *MoverController) SetOnUpdate(update func(float64) bool) {
-	cc.update = update
+func (cc *MoverController) AddOnUpdate(update func(float64) bool) {
+	cc.update = append(cc.update, update)
 }
 
 func (cc *MoverController) Update(time float64) {
-	if cc.update != nil {
-		if !cc.update(time) {
+	if len(cc.update) > 0 {
+		q := true
+		for _, f := range cc.update {
+			if !f(time) {
+				q = false
+			}
+		}
+		if !q {
 			return
 		}
 	}
@@ -101,27 +115,69 @@ func (cc *MoverController) AddMover(m Movable, c *fyne.Container) {
 }
 
 func (cc *MoverController) IsAnimation() bool {
-	return cc.animation != nil
+	return cc.animation.running
 }
 
 func (cc *MoverController) StopAnimation() {
 	if cc.animation != nil {
 		cc.animation.Stop()
-		cc.animation = nil
+
+	}
+}
+func (cc *MoverController) StartAnimation() {
+	if cc.animation != nil {
+		cc.animation.Start()
 	}
 }
 
-func (cc *MoverController) StartAnimation() {
-	cc.StopAnimation()
+func controllerDefaultTick(cc *MoverController, ac *AnimationController, f float32) {
+	cc.Update(float64(f - ac.ft))
+	if f == 1.0 {
+		ac.ft = 0
+	} else {
+		ac.ft = f
+	}
+}
 
-	var ft float32 = 0
-	cc.animation = &fyne.Animation{Duration: time.Duration(time.Second), RepeatCount: 1000000, Curve: fyne.AnimationLinear, Tick: func(f float32) {
-		cc.Update(float64(f - ft))
-		if f == 1.0 {
-			ft = 0
-		} else {
-			ft = f
-		}
-	}}
-	cc.animation.Start()
+func (cc *MoverController) InitAnimationController(delay int64, tick func(*MoverController, *AnimationController, float32)) {
+	ac := &AnimationController{delay: delay, ft: 0, running: false}
+	if tick == nil {
+		tick = controllerDefaultTick
+	}
+	ac.tick = tick
+	if ac.delay == 0 {
+		aa := &fyne.Animation{Duration: time.Duration(time.Second), RepeatCount: 1000000, Curve: fyne.AnimationLinear, Tick: func(f float32) {
+			ac.tick(cc, ac, f)
+		}}
+		ac.fastAnimation = aa
+		ac.running = true
+		aa.Start()
+	} else {
+		ac.running = false
+		go func() {
+			for {
+				time.Sleep(time.Millisecond * time.Duration(ac.delay))
+				if ac.running {
+					ac.tick(cc, ac, float32(delay))
+				}
+			}
+		}()
+		ac.running = true
+
+	}
+	cc.animation = ac
+}
+
+func (ac *AnimationController) Start() {
+	if ac.fastAnimation != nil {
+		ac.fastAnimation.Start()
+	}
+	ac.running = true
+}
+
+func (ac *AnimationController) Stop() {
+	if ac.fastAnimation != nil {
+		ac.fastAnimation.Stop()
+	}
+	ac.running = false
 }

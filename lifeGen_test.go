@@ -6,6 +6,32 @@ import (
 	"testing"
 )
 
+//    -2,-1, 0, 1, 2, 3, 4 X
+// -2  .  .  .  .  .  .  .
+// -1  .  y  y  y  y  y  .
+//  0  .  y  x  x  x  y  .
+//  1  .  y  y  y  y  y  .
+//  2  .  .  .  .  .  .  .
+//  3  .  .  .  .  .  .  .
+//  4  .  .  .  .  .  .  .
+//  Y
+// DeadCells
+// x:-1, y:-1 x:-1, y:0 x:-1, y:1 x:0, y:-1 x:0, y:1 x:1, y:-1 x:1, y:1 x:2, y:-1 x:2, y:1 x:3, y:-1 x:3, y:0 x:3, y:1
+
+func TestLifeNextGen(t *testing.T) {
+	rle := &RLE{}
+	rle.Load("testdata/rats.rle")
+	if len(rle.coords) != 6 {
+		t.Errorf("ibeacon: Expected len(coords):%d actual len(coords):%d", 6, len(rle.coords))
+	}
+	lg := NewLifeGen(func(l *LifeGen) {
+		fmt.Println(l)
+	})
+	lg.AddCells(rle.coords, lg.CurrentGenId())
+	lg.NextGen()
+
+}
+
 func TestLifeRLE(t *testing.T) {
 	rle := &RLE{}
 	rle.Load("testdata/rats.rle")
@@ -29,7 +55,7 @@ func assertStr(t *testing.T, exp, act string) {
 }
 
 func TestLifeGenCountCells(t *testing.T) {
-	lg := NewLifeGen()
+	lg := NewLifeGen(nil)
 	lg.AddCells([]int{2, 2}, lg.currentGenId)
 	testCountNear(t, lg, 2, 2, 0)
 	lg.AddCells([]int{1, 1}, lg.currentGenId)
@@ -75,7 +101,7 @@ func TestLifeGenCountCells(t *testing.T) {
 }
 
 func TestLifeGenAddCells(t *testing.T) {
-	lg := NewLifeGen()
+	lg := NewLifeGen(nil)
 	lg.AddCells([]int{1, 1, 2, 2}, lg.currentGenId)
 	testGen(t, lg, "Add Cells:", "1,1 2,2")
 	lg.AddCells([]int{0, 0, 1, 1, 2, 2}, lg.currentGenId)
@@ -83,7 +109,7 @@ func TestLifeGenAddCells(t *testing.T) {
 }
 
 func TestLifeGen(t *testing.T) {
-	lg := NewLifeGen()
+	lg := NewLifeGen(nil)
 	testGen(t, lg, "Empty gen:", "None")
 	testGet(t, lg, 0, 0, 0)
 	lg.AddCell(100, 100, lg.currentGenId)
