@@ -6,7 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 )
 
 var (
@@ -20,6 +20,50 @@ var (
 	countDots int           = 0
 )
 
+type MouseContainer struct {
+	*fyne.Container
+}
+
+func NewMouseContainer(cw, ch float64) *fyne.Container {
+	m := MouseContainer{&fyne.Container{Layout: &StaticLayout{size: fyne.Size{Width: float32(cw), Height: float32(ch)}}}}
+	return m.Container
+}
+
+func (mc *MouseContainer) MouseDown(*desktop.MouseEvent) {
+	fmt.Println("MouseDown")
+}
+
+func (mc *MouseContainer) MouseUp(*desktop.MouseEvent) {
+	fmt.Println("MouseUp")
+}
+
+func (mc *MouseContainer) Tapped(*fyne.PointEvent) {
+	fmt.Println("MouseUp")
+}
+
+var _ desktop.Mouseable = (*MouseContainer)(nil)
+var _ fyne.Tappable = (*MouseContainer)(nil)
+
+func POCLifeKeyPress(key *fyne.KeyEvent) {
+	fmt.Println(key.Name)
+	switch key.Name {
+	case "Up":
+		yOffset = yOffset + 50
+	case "Down":
+		yOffset = yOffset - 50
+	case "Left":
+		xOffset = xOffset + 50
+	case "Right":
+		xOffset = xOffset - 50
+	case "=":
+		gridSize = gridSize + 1
+	case "-":
+		if gridSize > 1 {
+			gridSize = gridSize - 1
+		}
+	}
+}
+
 /*
 -------------------------------------------------------------------- main
 */
@@ -27,17 +71,21 @@ func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Cont
 	cw := controller.width
 	ch := controller.height
 	rle := &RLE{}
-	err := rle.Load("testdata/reactions.rle")
+	err := rle.Load("testdata/Synth.rle")
 	if err != nil {
 		panic(err.Error())
 	}
-	cont := container.New(NewStaticLayout(cw, ch))
+	cont := NewMouseContainer(cw, ch)
+
+	//	cont := container.New(NewStaticLayout(cw, ch))
 	coords := rle.coords
 	timeText := NewMoverText("Time:", 10, 10, 20, fyne.TextAlignLeading)
 
 	lifeGen = NewLifeGen(nil)
 
 	lifeGen.AddCells(coords, lifeGen.CurrentGenId())
+
+	controller.SetOnKeyPress(POCLifeKeyPress)
 	controller.AddOnUpdate(func(f float64) bool {
 		lifeGen.NextGen()
 		LifeResetDot()
@@ -78,6 +126,7 @@ func LifeGetDot(x, y, xOfs, yOfs float32, gen LifeGenId, container *fyne.Contain
 	dot.Position1 = fyne.Position{X: xOfs + (x * gridSize), Y: yOfs + (y * gridSize)}
 	dot.Position2 = fyne.Position{X: xOfs + ((x * gridSize) + gridSize), Y: yOfs + ((y * gridSize) + gridSize)}
 	dot.FillColor = genColor[1]
+	dot.Resize(fyne.Size{Width: gridSize, Height: gridSize})
 	dot.Show()
 
 }

@@ -14,7 +14,7 @@ var (
 	textStyle = fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2}
 )
 
-func keyPressed(key *fyne.KeyEvent) {
+func POCkeyPressed(key *fyne.KeyEvent) {
 	sx, sy := player.GetCenter()
 	switch key.Name {
 	case fyne.KeyDown:
@@ -91,7 +91,7 @@ func mainPOC(mainWindow fyne.Window, controller *MoverController) *fyne.Containe
 	bBox5.UpdateContainerWithObjects(cont)
 
 	controller.SetOnKeyPress(func(key *fyne.KeyEvent) {
-		keyPressed(key)
+		POCkeyPressed(key)
 	})
 
 	go func() {

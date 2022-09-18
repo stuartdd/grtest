@@ -23,10 +23,8 @@ func main() {
 	})
 	mainWindow.SetMaster()
 	mainWindow.SetIcon(GoLogo_Png)
-
 	mainController = NewMoverController(1000, 1000)
 	mainContainer = mainPOCLife(mainWindow, mainController)
-	desktop
 	mainWindow.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
 		// fmt.Println(key.Name)
 		if key.Name == "Escape" {
@@ -35,8 +33,10 @@ func main() {
 		if key.Name == "F1" {
 			if mainController.IsAnimation() {
 				mainController.StopAnimation()
+				return
 			} else {
 				mainController.StartAnimation()
+				return
 			}
 
 		}
