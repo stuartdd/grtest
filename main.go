@@ -30,16 +30,6 @@ func main() {
 		if key.Name == "Escape" {
 			mainWindow.Close()
 		}
-		if key.Name == "F1" {
-			if mainController.IsAnimation() {
-				mainController.StopAnimation()
-				return
-			} else {
-				mainController.StartAnimation()
-				return
-			}
-
-		}
 		mainController.KeyPress(key)
 	})
 	mainWindow.SetContent(mainContainer)

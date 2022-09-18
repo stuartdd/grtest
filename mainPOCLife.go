@@ -6,18 +6,23 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/widget"
 )
 
 var (
-	dots      []*canvas.Circle = make([]*canvas.Circle, 0)
-	dotsPos   int              = 0
-	gridSize  float32          = 4
-	lifeGen   *LifeGen
-	xOffset   float32       = 10
-	yOffset   float32       = 10
-	genColor  []color.Color = []color.Color{color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}}
-	countDots int           = 0
+	dots        []*canvas.Circle = make([]*canvas.Circle, 0)
+	dotsPos     int              = 0
+	gridSize    float32          = 4
+	lifeGen     *LifeGen
+	xOffset     float32       = 10
+	yOffset     float32       = 10
+	genColor    []color.Color = []color.Color{color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}}
+	countDots   int           = 0
+	stepButton  *widget.Button
+	startButton *widget.Button
+	stopButton  *widget.Button
 )
 
 type MouseContainer struct {
@@ -38,7 +43,7 @@ func (mc *MouseContainer) MouseUp(*desktop.MouseEvent) {
 }
 
 func (mc *MouseContainer) Tapped(*fyne.PointEvent) {
-	fmt.Println("MouseUp")
+	fmt.Println("Tapped")
 }
 
 var _ desktop.Mouseable = (*MouseContainer)(nil)
@@ -47,6 +52,16 @@ var _ fyne.Tappable = (*MouseContainer)(nil)
 func POCLifeKeyPress(key *fyne.KeyEvent) {
 	fmt.Println(key.Name)
 	switch key.Name {
+	case "F1":
+		if mainController.IsAnimation() {
+			POCLifeStop()
+		} else {
+			POCLifeStart()
+		}
+	case "F2":
+		if !mainController.IsAnimation() {
+			mainController.Update(0)
+		}
 	case "Up":
 		yOffset = yOffset + 50
 	case "Down":
@@ -64,6 +79,19 @@ func POCLifeKeyPress(key *fyne.KeyEvent) {
 	}
 }
 
+func POCLifeStart() {
+	mainController.StartAnimation()
+	stepButton.Disable()
+	startButton.Disable()
+	stopButton.Enable()
+}
+func POCLifeStop() {
+	mainController.StopAnimation()
+	stepButton.Enable()
+	startButton.Enable()
+	stopButton.Disable()
+}
+
 /*
 -------------------------------------------------------------------- main
 */
@@ -76,6 +104,27 @@ func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Cont
 		panic(err.Error())
 	}
 	cont := NewMouseContainer(cw, ch)
+	topC := container.NewHBox()
+	startButton = widget.NewButton("Start (F1)", func() {
+		POCLifeStart()
+	})
+	stepButton = widget.NewButton("Step (F2)", func() {
+		controller.Update(0)
+	})
+	stopButton = widget.NewButton("Stop (F1)", func() {
+		POCLifeStop()
+	})
+	stepButton.Disable()
+	startButton.Disable()
+
+	topC.Add(widget.NewButton("Close (Esc)", func() {
+		mainWindow.Close()
+	}))
+	topC.Add(widget.NewSeparator())
+	topC.Add(startButton)
+	topC.Add(stopButton)
+	topC.Add(stepButton)
+	layout := container.NewBorder(topC, nil, nil, nil, cont)
 
 	//	cont := container.New(NewStaticLayout(cw, ch))
 	coords := rle.coords
@@ -102,7 +151,7 @@ func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Cont
 		return false
 	})
 	controller.AddMover(timeText, cont)
-	return cont
+	return layout
 }
 
 func LifeResetDot() {
