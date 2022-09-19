@@ -1,13 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"strconv"
+	"math"
 	"strings"
 	"time"
-	"unicode"
 )
 
 type LifeGenId int
@@ -30,15 +27,6 @@ type LifeGen struct {
 	startTimeMillis int64
 	timeMillis      int64
 	genDone         func(l *LifeGen)
-}
-
-type RLE struct {
-	fileName string
-	decoded  string
-	coords   []int
-	name     string
-	owner    string
-	comment  string
 }
 
 const (
@@ -181,6 +169,30 @@ func (lg *LifeGen) GetCell(x, y int, deadCells *LifeDeadCells) int {
 	return 0
 }
 
+func (lg *LifeGen) GetBounds() (int, int, int, int) {
+	maxx := math.MinInt32
+	maxy := math.MinInt32
+	minx := math.MaxInt32
+	miny := math.MaxInt32
+	cell := lg.CurrentGenRoot()
+	for cell != nil {
+		if cell.x > maxx {
+			maxx = cell.x
+		}
+		if cell.x < minx {
+			minx = cell.x
+		}
+		if cell.y > maxy {
+			maxy = cell.y
+		}
+		if cell.y < miny {
+			miny = cell.y
+		}
+		cell = cell.next
+	}
+	return minx, miny, maxx, maxy
+}
+
 func (lg *LifeGen) AddCells(c []int, gen LifeGenId) int {
 	n := 0
 	for i := 0; i < len(c); i = i + 2 {
@@ -252,112 +264,6 @@ func (lg *LifeGen) Short() string {
 		sb.WriteString(fmt.Sprintf("%d,%d ", c.x, c.y))
 		c = c.next
 	}
-	return sb.String()
-}
-
-func (rle *RLE) Load(fileName string) error {
-	file, err := os.Open(fileName)
-	if err != nil {
-		return err
-	}
-	rle.fileName = fileName
-	scanner := bufio.NewScanner(file)
-	var sb strings.Builder
-	ln := 0
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "#N") {
-			rle.name = strings.TrimSpace(line[2:])
-		} else {
-			if strings.HasPrefix(line, "#C") {
-				rle.comment = strings.TrimSpace(line[2:])
-			} else {
-				if strings.HasPrefix(line, "#O") {
-					rle.owner = strings.TrimSpace(line[2:])
-				} else {
-					if !strings.HasPrefix(line, "#") {
-						if ln > 0 {
-							sb.WriteString(line)
-						}
-						ln++
-					}
-				}
-			}
-		}
-	}
-	rle.decoded, rle.coords = rle.rleDecodeString(sb.String())
-	if scanner.Err() != nil {
-		return scanner.Err()
-	}
-	return nil
-}
-
-func (rle *RLE) rleDecodeString(rleStr string) (string, []int) {
-	var result strings.Builder
-	for len(rleStr) > 0 {
-		letterIndex := strings.IndexFunc(rleStr, func(r rune) bool { return !unicode.IsDigit(r) })
-		multiply := 1
-		if letterIndex != 0 {
-			multiply, _ = strconv.Atoi(rleStr[:letterIndex])
-		}
-		result.WriteString(strings.Repeat(string(rleStr[letterIndex]), multiply))
-		rleStr = rleStr[letterIndex+1:]
-	}
-	out := result.String()
-
-	var sb strings.Builder
-	coords := make([]int, 0)
-	count := 0
-	width := 0
-	y := 0
-	x := 0
-	for _, c := range out {
-		switch c {
-		case '$':
-			y++
-			x = 0
-			if count == 0 {
-				for i := 0; i <= width; i++ {
-					sb.WriteString("| ")
-				}
-				sb.WriteString("\n")
-			} else {
-				sb.WriteString("|\n")
-				width = count
-			}
-			count = 0
-		case 'b':
-			sb.WriteString("| ")
-			count++
-			x++
-		case 'o':
-			coords = append(coords, x)
-			coords = append(coords, y)
-			sb.WriteString("|O")
-			count++
-			x++
-		case '!':
-			for i := 0; i <= (width - count); i++ {
-				sb.WriteString("| ")
-			}
-		}
-	}
-	return sb.String(), coords
-}
-
-func (rle *RLE) String() string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Owner  :%s\n", rle.owner))
-	sb.WriteString(fmt.Sprintf("Name   :%s\n", rle.name))
-	sb.WriteString(fmt.Sprintf("File   :%s\n", rle.fileName))
-	sb.WriteString(fmt.Sprintf("Comment:%s\n", rle.comment))
-	sb.WriteString(fmt.Sprintf("Cells  :%d ", len(rle.coords)/2))
-
-	for i := 0; i < len(rle.coords); i = i + 2 {
-		sb.WriteString(fmt.Sprintf("%3d, %3d ", rle.coords[i], rle.coords[i+1]))
-	}
-	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("%s\n", rle.decoded))
 	return sb.String()
 }
 

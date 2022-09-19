@@ -20,9 +20,9 @@ var (
 	yOffset     float32       = 10
 	genColor    []color.Color = []color.Color{color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}}
 	countDots   int           = 0
-	stepButton  *widget.Button
-	startButton *widget.Button
 	stopButton  *widget.Button
+	startButton *widget.Button
+	stepButton  *widget.Button
 )
 
 type MouseContainer struct {
@@ -49,9 +49,8 @@ func (mc *MouseContainer) Tapped(*fyne.PointEvent) {
 var _ desktop.Mouseable = (*MouseContainer)(nil)
 var _ fyne.Tappable = (*MouseContainer)(nil)
 
-func POCLifeKeyPress(key *fyne.KeyEvent) {
-	fmt.Println(key.Name)
-	switch key.Name {
+func POCLifeKeyPress(key string) {
+	switch key {
 	case "F1":
 		if mainController.IsAnimation() {
 			POCLifeStop()
@@ -70,9 +69,9 @@ func POCLifeKeyPress(key *fyne.KeyEvent) {
 		xOffset = xOffset + 50
 	case "Right":
 		xOffset = xOffset - 50
-	case "=":
+	case "=", "+":
 		gridSize = gridSize + 1
-	case "-":
+	case "-", "_":
 		if gridSize > 1 {
 			gridSize = gridSize - 1
 		}
@@ -85,6 +84,7 @@ func POCLifeStart() {
 	startButton.Disable()
 	stopButton.Enable()
 }
+
 func POCLifeStop() {
 	mainController.StopAnimation()
 	stepButton.Enable()
@@ -92,17 +92,32 @@ func POCLifeStop() {
 	stopButton.Disable()
 }
 
+func POCLifeLoad(file string, err error) (*LifeGen, error) {
+	if err != nil {
+		return nil, err
+	}
+	rle := &RLE{}
+	err = rle.Load(file)
+	if err != nil {
+		return nil, err
+	}
+	coords := rle.coords
+	lg := NewLifeGen(nil)
+	lg.AddCells(coords, lg.CurrentGenId())
+	minx, miny, maxx, maxy := lg.GetBounds()
+	xOffset = float32(minx) + 10
+	yOffset = float32(miny) + 10
+	fmt.Printf("File: %s MinX: %4d MinY: %4d MaxX: %04d MaxY: %4d\n", file, minx, miny, maxx, maxy)
+	return lg, nil
+}
+
 /*
 -------------------------------------------------------------------- main
 */
 func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Container {
+	var err error
 	cw := controller.width
 	ch := controller.height
-	rle := &RLE{}
-	err := rle.Load("testdata/Synth.rle")
-	if err != nil {
-		panic(err.Error())
-	}
 	cont := NewMouseContainer(cw, ch)
 	topC := container.NewHBox()
 	startButton = widget.NewButton("Start (F1)", func() {
@@ -121,20 +136,55 @@ func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Cont
 		mainWindow.Close()
 	}))
 	topC.Add(widget.NewSeparator())
+	topC.Add(widget.NewButton("File", func() {
+		go runMyFileDialog(mainWindow, "", func(file string, err error) {
+			if err == nil {
+				POCLifeStop()
+				lifeGen, err = POCLifeLoad(file, nil)
+				if err != nil {
+					panic(err)
+				}
+				POCLifeStart()
+			}
+		})
+	}))
+	topC.Add(widget.NewSeparator())
 	topC.Add(startButton)
 	topC.Add(stopButton)
 	topC.Add(stepButton)
+	topC.Add(widget.NewSeparator())
+	topC.Add(widget.NewButton("-", func() {
+		POCLifeKeyPress("-")
+	}))
+	topC.Add(widget.NewButton("+", func() {
+		POCLifeKeyPress("+")
+	}))
+	topC.Add(widget.NewSeparator())
+	topC.Add(widget.NewButton("<", func() {
+		POCLifeKeyPress("Left")
+	}))
+	topC.Add(widget.NewButton("^", func() {
+		POCLifeKeyPress("Up")
+	}))
+	topC.Add(widget.NewButton("v", func() {
+		POCLifeKeyPress("Down")
+	}))
+	topC.Add(widget.NewButton(">", func() {
+		POCLifeKeyPress("Right")
+	}))
 	layout := container.NewBorder(topC, nil, nil, nil, cont)
 
 	//	cont := container.New(NewStaticLayout(cw, ch))
-	coords := rle.coords
 	timeText := NewMoverText("Time:", 10, 10, 20, fyne.TextAlignLeading)
 
-	lifeGen = NewLifeGen(nil)
+	lifeGen, err = POCLifeLoad("testdata/blinker.rle", nil)
+	if err != nil {
+		panic(err)
+	}
 
-	lifeGen.AddCells(coords, lifeGen.CurrentGenId())
-
-	controller.SetOnKeyPress(POCLifeKeyPress)
+	controller.SetOnKeyPress(func(key *fyne.KeyEvent) {
+		POCLifeKeyPress(string(key.Name))
+	})
 	controller.AddOnUpdate(func(f float64) bool {
 		lifeGen.NextGen()
 		LifeResetDot()
