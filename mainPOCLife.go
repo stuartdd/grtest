@@ -7,7 +7,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -24,30 +23,6 @@ var (
 	startButton *widget.Button
 	stepButton  *widget.Button
 )
-
-type MouseContainer struct {
-	*fyne.Container
-}
-
-func NewMouseContainer(cw, ch float64) *fyne.Container {
-	m := MouseContainer{&fyne.Container{Layout: &StaticLayout{size: fyne.Size{Width: float32(cw), Height: float32(ch)}}}}
-	return m.Container
-}
-
-func (mc *MouseContainer) MouseDown(*desktop.MouseEvent) {
-	fmt.Println("MouseDown")
-}
-
-func (mc *MouseContainer) MouseUp(*desktop.MouseEvent) {
-	fmt.Println("MouseUp")
-}
-
-func (mc *MouseContainer) Tapped(*fyne.PointEvent) {
-	fmt.Println("Tapped")
-}
-
-var _ desktop.Mouseable = (*MouseContainer)(nil)
-var _ fyne.Tappable = (*MouseContainer)(nil)
 
 func POCLifeKeyPress(key string) {
 	switch key {
@@ -118,7 +93,7 @@ func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Cont
 	var err error
 	cw := controller.width
 	ch := controller.height
-	cont := NewMouseContainer(cw, ch)
+	cont := NewMyWidget(cw, ch)
 	topC := container.NewHBox()
 	startButton = widget.NewButton("Start (F1)", func() {
 		POCLifeStart()
@@ -200,7 +175,7 @@ func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Cont
 		timeText.SetText(fmt.Sprintf("Time: %05d Gen: %05d Cells:%05d DOTS:%d", lifeGen.timeMillis, lifeGen.countGen, lifeGen.cellCount[lifeGen.currentGenId], countDots))
 		return false
 	})
-	controller.AddMover(timeText, cont)
+	controller.AddMover(timeText, nil)
 	return layout
 }
 
@@ -211,7 +186,7 @@ func LifeResetDot() {
 	}
 }
 
-func LifeGetDot(x, y, xOfs, yOfs float32, gen LifeGenId, container *fyne.Container) {
+func LifeGetDot(x, y, xOfs, yOfs float32, gen LifeGenId, container *MyWidget) {
 	if dotsPos >= len(dots) {
 		for i := 0; i < 20; i++ {
 			d := canvas.NewCircle(color.RGBA{0, 0, 255, 255})
