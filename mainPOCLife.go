@@ -93,7 +93,7 @@ func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Cont
 	var err error
 	cw := controller.width
 	ch := controller.height
-	cont := NewMyWidget(cw, ch)
+	cont := NewMoverWidget(cw, ch)
 	topC := container.NewHBox()
 	startButton = widget.NewButton("Start (F1)", func() {
 		POCLifeStart()
@@ -186,7 +186,7 @@ func LifeResetDot() {
 	}
 }
 
-func LifeGetDot(x, y, xOfs, yOfs float32, gen LifeGenId, container *MyWidget) {
+func LifeGetDot(x, y, xOfs, yOfs float32, gen LifeGenId, container *MoverWidget) {
 	if dotsPos >= len(dots) {
 		for i := 0; i < 20; i++ {
 			d := canvas.NewCircle(color.RGBA{0, 0, 255, 255})
