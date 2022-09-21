@@ -48,6 +48,12 @@ func (mv *MoverText) Update(time float64) {
 	}
 }
 
+func (mv *MoverText) GetCanvasObjects() []fyne.CanvasObject {
+	co := make([]fyne.CanvasObject, 1)
+	co[0] = mv.text
+	return co
+}
+
 func (mv *MoverText) ContainsAny(p *Points) bool {
 	if mv.IsVisible() {
 		return mv.GetBounds().ContainsAny(p)
@@ -65,10 +71,6 @@ func (mv *MoverText) SetVisible(v bool) {
 
 func (mv *MoverText) IsVisible() bool {
 	return mv.text.Visible()
-}
-
-func (mv *MoverText) UpdateContainerWithObjects(cont *fyne.Container) {
-	cont.Add(mv.text)
 }
 
 func (mv *MoverText) GetSizeAndCenter() *SizeAndCenter {

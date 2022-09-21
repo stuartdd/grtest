@@ -45,6 +45,14 @@ func NewMoverRect(colour color.Color, centerx, centery, w, h, speedAng float64) 
 	return ml
 }
 
+func (mv *MoverLines) GetCanvasObjects() []fyne.CanvasObject {
+	co := make([]fyne.CanvasObject, len(mv.lines))
+	for i, l := range mv.lines {
+		co[i] = l
+	}
+	return co
+}
+
 func (mv *MoverLines) ContainsAny(p *Points) bool {
 	if mv.IsVisible() {
 		return mv.GetBounds().ContainsAny(p)
@@ -115,12 +123,6 @@ func (mv *MoverLines) Update(time float64) {
 	}
 	mv.centerx = mv.centerx + float64(dx)
 	mv.centery = mv.centery + float64(dy)
-}
-
-func (mv *MoverLines) UpdateContainerWithObjects(cont *fyne.Container) {
-	for _, l := range mv.lines {
-		cont.Add(l)
-	}
 }
 
 func (mv *MoverLines) GetAngle() int {

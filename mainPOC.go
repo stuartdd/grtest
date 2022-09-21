@@ -31,8 +31,8 @@ func POCkeyPressed(key *fyne.KeyEvent) {
 /*
 -------------------------------------------------------------------- main
 */
-func mainPOC(mainWindow fyne.Window, controller *MoverController) *fyne.Container {
-	cont := container.New(NewStaticLayout(500, 500))
+func mainPOC(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
+	containerWidget := NewMoverWidget(width, height)
 
 	player = NewMoverImage(100, 100, 40, 40, canvas.NewImageFromResource(Lander_Png))
 	player.SetSpeed(15, 15)
@@ -72,23 +72,30 @@ func mainPOC(mainWindow fyne.Window, controller *MoverController) *fyne.Containe
 	/*
 		Add Movers that are managed directly by the controller
 	*/
-	controller.AddMover(circ1, cont)
-	controller.AddMover(player, cont)
-	controller.AddMover(group1, cont)
-	controller.AddMover(text1, cont)
-	controller.AddMover(text2, cont)
-	controller.AddMover(text3, cont)
+	controller.AddMover(circ1)
+	controller.AddMover(player)
+	controller.AddMover(group1)
+	controller.AddMover(text1)
+	controller.AddMover(text2)
+	controller.AddMover(text3)
 	/*
 		Add Movers that are *NOT* managed directly by the controller
 	*/
-	guideLine.UpdateContainerWithObjects(cont)
-	bBoxf1.UpdateContainerWithObjects(cont)
-	bBoxf2.UpdateContainerWithObjects(cont)
-	bBoxf3.UpdateContainerWithObjects(cont)
-	bBox2.UpdateContainerWithObjects(cont)
-	bBox3.UpdateContainerWithObjects(cont)
-	bBox4.UpdateContainerWithObjects(cont)
-	bBox5.UpdateContainerWithObjects(cont)
+
+	containerWidget.AddMover(circ1)
+	containerWidget.AddMover(player)
+	containerWidget.AddMover(group1)
+	containerWidget.AddMover(text1)
+	containerWidget.AddMover(text2)
+	containerWidget.AddMover(text3)
+	containerWidget.AddMover(guideLine)
+	containerWidget.AddMover(bBoxf1)
+	containerWidget.AddMover(bBoxf2)
+	containerWidget.AddMover(bBoxf3)
+	containerWidget.AddMover(bBox2)
+	containerWidget.AddMover(bBox3)
+	containerWidget.AddMover(bBox4)
+	containerWidget.AddMover(bBox5)
 
 	controller.SetOnKeyPress(func(key *fyne.KeyEvent) {
 		POCkeyPressed(key)
@@ -156,7 +163,7 @@ func mainPOC(mainWindow fyne.Window, controller *MoverController) *fyne.Containe
 			}
 		}
 	}()
-	return cont
+	return container.New(NewStaticLayout(width, height), containerWidget)
 }
 
 func setPoints(group *MoverGroup, mv Movable) {

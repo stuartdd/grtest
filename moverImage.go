@@ -56,6 +56,12 @@ func (mv *MoverImage) SetShouldMove(f func(Movable, float64, float64) bool) {
 	mv.shouldMove = f
 }
 
+func (mv *MoverImage) GetCanvasObjects() []fyne.CanvasObject {
+	co := make([]fyne.CanvasObject, 1)
+	co[0] = mv.image
+	return co
+}
+
 func (mv *MoverImage) Update(time float64) {
 	dx := mv.speedx * time
 	dy := mv.speedy * time
@@ -64,10 +70,6 @@ func (mv *MoverImage) Update(time float64) {
 		mv.centery = mv.centery + dy
 		mv.image.Move(fyne.Position{X: float32(mv.centerx) - (mv.imageSize.Width / 2), Y: float32(mv.centery) - mv.imageSize.Height/2})
 	}
-}
-
-func (mv *MoverImage) UpdateContainerWithObjects(cont *fyne.Container) {
-	cont.Add(mv.image)
 }
 
 func (mv *MoverImage) GetSizeAndCenter() *SizeAndCenter {

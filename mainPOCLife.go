@@ -89,12 +89,11 @@ func POCLifeLoad(file string, err error) (*LifeGen, error) {
 /*
 -------------------------------------------------------------------- main
 */
-func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Container {
+func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
 	var err error
-	cw := controller.width
-	ch := controller.height
-	cont := NewMoverWidget(cw, ch)
+	moverWidget := NewMoverWidget(width, height)
 	topC := container.NewHBox()
+	botC := container.NewPadded()
 	startButton = widget.NewButton("Start (F1)", func() {
 		POCLifeStart()
 	})
@@ -147,12 +146,10 @@ func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Cont
 	topC.Add(widget.NewButton(">", func() {
 		POCLifeKeyPress("Right")
 	}))
-	layout := container.NewBorder(topC, nil, nil, nil, cont)
 
-	//	cont := container.New(NewStaticLayout(cw, ch))
 	timeText := NewMoverText("Time:", 10, 10, 20, fyne.TextAlignLeading)
-
-	lifeGen, err = POCLifeLoad("testdata/blinker.rle", nil)
+	botC.Add(timeText.GetCanvasObjects()[0])
+	lifeGen, err = POCLifeLoad("testdata/Infinite_growth.rle", nil)
 	if err != nil {
 		panic(err)
 	}
@@ -160,7 +157,8 @@ func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Cont
 	controller.SetOnKeyPress(func(key *fyne.KeyEvent) {
 		POCLifeKeyPress(string(key.Name))
 	})
-	controller.AddOnUpdate(func(f float64) bool {
+
+	controller.AddOnUpdateBefore(func(f float64) bool {
 		lifeGen.NextGen()
 		LifeResetDot()
 		countDots = 0
@@ -168,15 +166,15 @@ func mainPOCLife(mainWindow fyne.Window, controller *MoverController) *fyne.Cont
 
 		cell := lifeGen.CurrentGenRoot()
 		for cell != nil {
-			LifeGetDot(float32(cell.x), float32(cell.y), xOffset, yOffset, gen, cont)
+			LifeGetDot(float32(cell.x), float32(cell.y), xOffset, yOffset, gen, moverWidget)
 			cell = cell.next
 			countDots++
 		}
 		timeText.SetText(fmt.Sprintf("Time: %05d Gen: %05d Cells:%05d DOTS:%d", lifeGen.timeMillis, lifeGen.countGen, lifeGen.cellCount[lifeGen.currentGenId], countDots))
-		return false
+		return true
 	})
-	controller.AddMover(timeText, nil)
-	return layout
+
+	return container.NewBorder(topC, botC, nil, nil, moverWidget)
 }
 
 func LifeResetDot() {
@@ -202,5 +200,4 @@ func LifeGetDot(x, y, xOfs, yOfs float32, gen LifeGenId, container *MoverWidget)
 	dot.FillColor = genColor[1]
 	dot.Resize(fyne.Size{Width: gridSize, Height: gridSize})
 	dot.Show()
-
 }

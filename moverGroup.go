@@ -51,6 +51,14 @@ func (mv *MoverGroup) Add(mover Movable) {
 func (mv *MoverGroup) SetShouldMove(f func(Movable, float64, float64) bool) {
 }
 
+func (mv *MoverGroup) GetCanvasObjects() []fyne.CanvasObject {
+	co := make([]fyne.CanvasObject, 0)
+	for _, m := range mv.movers {
+		co = append(co, m.GetCanvasObjects()...)
+	}
+	return co
+}
+
 func (mv *MoverGroup) Update(time float64) {
 	mv0 := mv.movers[0]
 	mv0.Update(time)
@@ -79,12 +87,6 @@ func (mv *MoverGroup) Update(time float64) {
 			cxm, cym := m.GetCenter()
 			m.SetCenter(rotatePoints(cx, cy, cxm, cym, ra))
 		}
-	}
-}
-
-func (mv *MoverGroup) UpdateContainerWithObjects(c *fyne.Container) {
-	for _, m := range mv.movers {
-		m.UpdateContainerWithObjects(c)
 	}
 }
 

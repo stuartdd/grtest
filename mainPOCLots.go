@@ -16,15 +16,17 @@ var (
 /*
 -------------------------------------------------------------------- main
 */
-func mainPOClots(mainWindow fyne.Window, controller *MoverController) *fyne.Container {
-	cw := controller.width
-	ch := controller.height
-	cont := container.New(NewStaticLayout(cw, ch))
+func mainPOClots(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
+
+	cont := container.New(NewStaticLayout(width, height))
 
 	for i := 0; i < 2000; i++ {
-		c := NewMoverCircle(nil, color.RGBA{255, 0, 0, 255}, rndPos(35, cw-40), rndPos(35, ch-40), 5, 5)
+		c := NewMoverCircle(nil, color.RGBA{255, 0, 0, 255}, rndPos(35, height-40), rndPos(35, height-40), 5, 5)
 		c.SetSpeed(rndSpeed(10, 50), rndSpeed(10, 50))
-		controller.AddMover(c, cont)
+		controller.AddMover(c)
+		for _, co := range c.GetCanvasObjects() {
+			cont.Add(co)
+		}
 		c.SetShouldMove(shouldMove)
 	}
 

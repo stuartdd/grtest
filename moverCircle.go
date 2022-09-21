@@ -58,6 +58,12 @@ func (mv *MoverCircle) SetShouldMove(f func(Movable, float64, float64) bool) {
 	mv.shouldMove = f
 }
 
+func (mv *MoverCircle) GetCanvasObjects() []fyne.CanvasObject {
+	co := make([]fyne.CanvasObject, 1)
+	co[0] = mv.circle
+	return co
+}
+
 func (mv *MoverCircle) Update(time float64) {
 	dx := mv.speedx * time
 	dy := mv.speedy * time
@@ -69,10 +75,6 @@ func (mv *MoverCircle) Update(time float64) {
 		mv.circle.Position2.X = float32(mv.centerx + (mv.width / 2))
 		mv.circle.Position2.Y = float32(mv.centery + (mv.height / 2))
 	}
-}
-
-func (mv *MoverCircle) UpdateContainerWithObjects(c *fyne.Container) {
-	c.Add(mv.circle)
 }
 
 func (mv *MoverCircle) GetSizeAndCenter() *SizeAndCenter {

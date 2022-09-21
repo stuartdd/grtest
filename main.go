@@ -24,7 +24,7 @@ func main() {
 	mainWindow.SetMaster()
 	mainWindow.SetIcon(GoLogo_Png)
 	mainController = NewMoverController(1000, 1000)
-	mainContainer = mainPOCLife(mainWindow, mainController)
+	mainContainer = mainPOCLife(mainWindow, 1000, 1000, mainController)
 	mainWindow.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
 		// fmt.Println(key.Name)
 		if key.Name == "Escape" {
@@ -32,19 +32,16 @@ func main() {
 		}
 		mainController.KeyPress(key)
 	})
+
 	mainWindow.SetContent(mainContainer)
-	mainController.AddOnUpdate(func(f float64) bool {
+	mainController.AddOnUpdateAfter(func(f float64) bool {
 		mainContainer.Refresh()
-		return false
+		return true
 	})
 
 	go func() {
 		time.Sleep(time.Millisecond * 500)
 		mainController.InitAnimationController(50, nil)
-		// for {
-		// 	time.Sleep(time.Millisecond * 200)
-		// 	mainContainer.Refresh()
-		// }
 	}()
 
 	mainWindow.ShowAndRun()
