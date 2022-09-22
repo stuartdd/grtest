@@ -18,7 +18,7 @@ var (
 	xOffset     float32       = 10
 	yOffset     float32       = 10
 	genColor    []color.Color = []color.Color{color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}}
-	countDots   int           = 0
+	countLines  int           = 0
 	stopButton  *widget.Button
 	startButton *widget.Button
 	stepButton  *widget.Button
@@ -78,7 +78,7 @@ func POCLifeLoad(file string, err error) (*LifeGen, error) {
 	}
 	coords := rle.coords
 	lg := NewLifeGen(nil)
-	lg.AddCells(coords, lg.CurrentGenId())
+	lg.AddCellsAtOffset(0, 0, coords, lg.CurrentGenId())
 	minx, miny, maxx, maxy := lg.GetBounds()
 	xOffset = float32(minx) + 10
 	yOffset = float32(miny) + 10
@@ -147,9 +147,9 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		POCLifeKeyPress("Right")
 	}))
 
-	timeText := NewMoverText("Time:", 10, 10, 20, fyne.TextAlignLeading)
-	botC.Add(timeText.GetCanvasObjects()[0])
-	lifeGen, err = POCLifeLoad("testdata/Infinite_growth.rle", nil)
+	timeText := widget.NewLabel("")
+	botC.Add(timeText)
+	lifeGen, err = POCLifeLoad("testdata/1234_synth.rle", nil)
 	if err != nil {
 		panic(err)
 	}
@@ -161,16 +161,18 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	controller.AddOnUpdateBefore(func(f float64) bool {
 		lifeGen.NextGen()
 		LifeResetDot()
-		countDots = 0
 		gen := lifeGen.currentGenId
 
 		cell := lifeGen.CurrentGenRoot()
 		for cell != nil {
 			LifeGetDot(float32(cell.x), float32(cell.y), xOffset, yOffset, gen, moverWidget)
 			cell = cell.next
-			countDots++
 		}
-		timeText.SetText(fmt.Sprintf("Time: %05d Gen: %05d Cells:%05d DOTS:%d", lifeGen.timeMillis, lifeGen.countGen, lifeGen.cellCount[lifeGen.currentGenId], countDots))
+		if countLines < 15 {
+			fmt.Printf("Time: %05dms\n", lifeGen.timeMillis)
+			countLines++
+		}
+		timeText.SetText(fmt.Sprintf("Time: %05dms Gen: %05d Cells:%05d", lifeGen.timeMillis, lifeGen.countGen, lifeGen.cellCount[lifeGen.currentGenId]))
 		return true
 	})
 

@@ -193,10 +193,10 @@ func (lg *LifeGen) GetBounds() (int, int, int, int) {
 	return minx, miny, maxx, maxy
 }
 
-func (lg *LifeGen) AddCells(c []int, gen LifeGenId) int {
+func (lg *LifeGen) AddCellsAtOffset(x, y int, c []int, gen LifeGenId) int {
 	n := 0
 	for i := 0; i < len(c); i = i + 2 {
-		n = n + lg.AddCell(c[i], c[i+1], gen)
+		n = n + lg.AddCell(x+c[i], y+c[i+1], gen)
 	}
 	lg.cellCount[gen] = lg.cellCount[gen] + n
 	return n
