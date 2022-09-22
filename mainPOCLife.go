@@ -18,7 +18,6 @@ var (
 	xOffset     float32       = 10
 	yOffset     float32       = 10
 	genColor    []color.Color = []color.Color{color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}}
-	countLines  int           = 0
 	stopButton  *widget.Button
 	startButton *widget.Button
 	stepButton  *widget.Button
@@ -78,7 +77,7 @@ func POCLifeLoad(file string, err error) (*LifeGen, error) {
 	}
 	coords := rle.coords
 	lg := NewLifeGen(nil)
-	lg.AddCellsAtOffset(0, 0, coords, lg.CurrentGenId())
+	lg.AddCellsAtOffset(0, 0, coords, lg.currentGenId)
 	minx, miny, maxx, maxy := lg.GetBounds()
 	xOffset = float32(minx) + 10
 	yOffset = float32(miny) + 10
@@ -163,14 +162,10 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		LifeResetDot()
 		gen := lifeGen.currentGenId
 
-		cell := lifeGen.CurrentGenRoot()
+		cell := lifeGen.generations[lifeGen.currentGenId]
 		for cell != nil {
 			LifeGetDot(float32(cell.x), float32(cell.y), xOffset, yOffset, gen, moverWidget)
 			cell = cell.next
-		}
-		if countLines < 15 {
-			fmt.Printf("Time: %05dms\n", lifeGen.timeMillis)
-			countLines++
 		}
 		timeText.SetText(fmt.Sprintf("Time: %05dms Gen: %05d Cells:%05d", lifeGen.timeMillis, lifeGen.countGen, lifeGen.cellCount[lifeGen.currentGenId]))
 		return true

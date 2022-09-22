@@ -17,7 +17,7 @@ import (
 type RLE struct {
 	fileName string
 	decoded  string
-	coords   []int
+	coords   []int64
 	name     string
 	owner    string
 	comment  string
@@ -60,7 +60,7 @@ func (rle *RLE) Load(fileName string) error {
 	return nil
 }
 
-func (rle *RLE) rleDecodeString(rleStr string) (string, []int) {
+func (rle *RLE) rleDecodeString(rleStr string) (string, []int64) {
 	var result strings.Builder
 	for len(rleStr) > 0 {
 		letterIndex := strings.IndexFunc(rleStr, func(r rune) bool { return !unicode.IsDigit(r) })
@@ -74,11 +74,11 @@ func (rle *RLE) rleDecodeString(rleStr string) (string, []int) {
 	out := result.String()
 
 	var sb strings.Builder
-	coords := make([]int, 0)
+	coords := make([]int64, 0)
 	count := 0
 	width := 0
-	y := 0
-	x := 0
+	var y int64 = 0
+	var x int64 = 0
 	for _, c := range out {
 		switch c {
 		case '$':

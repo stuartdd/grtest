@@ -24,29 +24,65 @@ import (
 // Time:[955 908 867 857] Total:3587 TestTime:3572
 // Time:[990 904 878 856] Total:3628 TestTime:3611
 // Time:[974 898 871 860] Total:3603 TestTime:3588
+// Time:[966 911 885 875] Total:3637 TestTime:3623
 //
+// Refactor 1 CountNearFast
+// Time:[900 934 889 830] Total:3553 TestTime:3539
+// Time:[903 885 854 836] Total:3478 TestTime:3464
+//
+// Inline LifeCell.id(). Order of magnitude!
+// Time:[508 561 542 533] Total:2144
+// Time:[521 556 549 524] Total:2150
+//
+// All int64 x and y (Slight regression)
+// Time:[527 563 561 527] Total:2178
+// Time:[542 553 566 534] Total:2195
+//
+// Call to index mid point
+// Time:[520 558 563 579] Total:2220
+// Time:[494 637 612 567] Total:2310
+// Time:[526 579 604 585] Total:2294
+//
+// GetCell GetCellFast using index mid point
+// Time:[383 349 355 331] Total:1418
+// Time:[351 363 345 334] Total:1393
+// Time:[326 350 344 332] Total:1352
+//
+
+var deadCells = &LifeDeadCells{count: 0, root: nil}
+
 func TestLifeTiming(t *testing.T) {
+	LifeTiming(t)
+	LifeTiming(t)
+	LifeTiming(t)
+}
+
+func LifeTiming(t *testing.T) {
 	rle := &RLE{}
 	rle.Load("testdata/1234_synth.rle")
 	tims := make([]int64, 0)
-	timsPos := 0
 	var timTot int64 = 0
 	tim := time.Now().UnixMilli()
 	lg := NewLifeGen(func(l *LifeGen) {
+		//
+		// Count overall times. Note this is in a separate thread to the NextGen process
+		// So we delay at the end (see below)
+		//
 		tim = time.Now().UnixMilli() - tim
 		timTot = timTot + tim
 		tims = append(tims, tim)
 		tim = time.Now().UnixMilli()
-		timsPos++
 	})
-	lg.AddCellsAtOffset(0, 0, rle.coords, lg.CurrentGenId())
-	lg.AddCellsAtOffset(100, 100, rle.coords, lg.CurrentGenId())
-	lg.AddCellsAtOffset(200, 200, rle.coords, lg.CurrentGenId())
-	tim2 := time.Now().UnixMilli()
+	lg.AddCellsAtOffset(0, 0, rle.coords, lg.currentGenId)
+	lg.AddCellsAtOffset(100, 100, rle.coords, lg.currentGenId)
+	lg.AddCellsAtOffset(200, 200, rle.coords, lg.currentGenId)
 	for i := 0; i < 4; i++ {
 		lg.NextGen()
 	}
-	fmt.Printf("Time:%d Total:%d TestTime:%d\n", tims, timTot, time.Now().UnixMilli()-tim2)
+	for len(tims) < 4 {
+		time.Sleep(time.Millisecond * 10) // Wait as for all the NextGen callbacks to finish
+	}
+	fmt.Printf("// Time:%d Total:%d\n", tims, timTot)
 }
 
 func TestLifeNextGen(t *testing.T) {
@@ -58,7 +94,7 @@ func TestLifeNextGen(t *testing.T) {
 	lg := NewLifeGen(func(l *LifeGen) {
 		fmt.Println(l)
 	})
-	lg.AddCellsAtOffset(0, 0, rle.coords, lg.CurrentGenId())
+	lg.AddCellsAtOffset(0, 0, rle.coords, lg.currentGenId)
 	lg.NextGen()
 }
 
@@ -86,23 +122,23 @@ func assertStr(t *testing.T, exp, act string) {
 
 func TestLifeGenCountCells(t *testing.T) {
 	lg := NewLifeGen(nil)
-	lg.AddCellsAtOffset(0, 0, []int{2, 2}, lg.currentGenId)
+	lg.AddCellsAtOffset(0, 0, []int64{2, 2}, lg.currentGenId)
 	testCountNear(t, lg, 2, 2, 0)
-	lg.AddCellsAtOffset(0, 0, []int{1, 1}, lg.currentGenId)
+	lg.AddCellsAtOffset(0, 0, []int64{1, 1}, lg.currentGenId)
 	testCountNear(t, lg, 2, 2, 1)
-	lg.AddCellsAtOffset(0, 0, []int{1, 2}, lg.currentGenId)
+	lg.AddCellsAtOffset(0, 0, []int64{1, 2}, lg.currentGenId)
 	testCountNear(t, lg, 2, 2, 2)
-	lg.AddCellsAtOffset(0, 0, []int{1, 3}, lg.currentGenId)
+	lg.AddCellsAtOffset(0, 0, []int64{1, 3}, lg.currentGenId)
 	testCountNear(t, lg, 2, 2, 3)
-	lg.AddCellsAtOffset(0, 0, []int{2, 1}, lg.currentGenId)
+	lg.AddCellsAtOffset(0, 0, []int64{2, 1}, lg.currentGenId)
 	testCountNear(t, lg, 2, 2, 4)
-	lg.AddCellsAtOffset(0, 0, []int{2, 3}, lg.currentGenId)
+	lg.AddCellsAtOffset(0, 0, []int64{2, 3}, lg.currentGenId)
 	testCountNear(t, lg, 2, 2, 5)
-	lg.AddCellsAtOffset(0, 0, []int{3, 1}, lg.currentGenId)
+	lg.AddCellsAtOffset(0, 0, []int64{3, 1}, lg.currentGenId)
 	testCountNear(t, lg, 2, 2, 6)
-	lg.AddCellsAtOffset(0, 0, []int{3, 2}, lg.currentGenId)
+	lg.AddCellsAtOffset(0, 0, []int64{3, 2}, lg.currentGenId)
 	testCountNear(t, lg, 2, 2, 7)
-	lg.AddCellsAtOffset(0, 0, []int{3, 3}, lg.currentGenId)
+	lg.AddCellsAtOffset(0, 0, []int64{3, 3}, lg.currentGenId)
 	testCountNear(t, lg, 2, 2, 8)
 
 	testCountNear(t, lg, 1, 1, 3)
@@ -132,9 +168,9 @@ func TestLifeGenCountCells(t *testing.T) {
 
 func TestLifeGenAddCells(t *testing.T) {
 	lg := NewLifeGen(nil)
-	lg.AddCellsAtOffset(0, 0, []int{1, 1, 2, 2}, lg.currentGenId)
+	lg.AddCellsAtOffset(0, 0, []int64{1, 1, 2, 2}, lg.currentGenId)
 	testGen(t, lg, "Add Cells:", "1,1 2,2")
-	lg.AddCellsAtOffset(0, 0, []int{0, 0, 1, 1, 2, 2}, lg.currentGenId)
+	lg.AddCellsAtOffset(0, 0, []int64{0, 0, 1, 1, 2, 2}, lg.currentGenId)
 	testGen(t, lg, "Add Cells:", "0,0 1,1 2,2")
 }
 
@@ -169,15 +205,15 @@ func TestLifeGen(t *testing.T) {
 	testGet(t, lg, 50, 74, 0)
 }
 
-func testGet(t *testing.T, lg *LifeGen, x, y, exp int) {
-	b := lg.GetCell(x, y, nil)
+func testGet(t *testing.T, lg *LifeGen, x, y int64, exp int) {
+	b := lg.GetCell(x, y, deadCells)
 	if b != exp {
 		t.Errorf("TestGet: Expected '%d' actual '%d'", exp, b)
 	}
 }
 
-func testCountNear(t *testing.T, lg *LifeGen, x, y, exp int) {
-	b := lg.CountNear(x, y, nil)
+func testCountNear(t *testing.T, lg *LifeGen, x, y int64, exp int) {
+	b := lg.CountNear(x, y, deadCells)
 	if b != exp {
 		t.Errorf("CountNear: Expected '%d' actual '%d'", exp, b)
 	}
