@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
@@ -17,22 +15,49 @@ type MoverWidget struct {
 	size              fyne.Size
 	onSizeChange      func(fyne.Size, fyne.Size)
 	objects           []fyne.CanvasObject
+	onMouseEvent      func(int64, int64, MoverMouseEventType)
 }
 
-func (mc *MoverWidget) MouseDown(*desktop.MouseEvent) {
-	fmt.Println("MouseDown")
+type MoverMouseEventType int
+
+const (
+	ME_DOWN MoverMouseEventType = iota
+	ME_UP
+	ME_TAP
+	ME_DTAP
+)
+
+func (mc *MoverWidget) SetOnMouseEvent(f func(int64, int64, MoverMouseEventType)) {
+	mc.onMouseEvent = f
 }
 
-func (mc *MoverWidget) MouseUp(*desktop.MouseEvent) {
-	fmt.Println("MouseUp")
+func (mc *MoverWidget) MouseDown(me *desktop.MouseEvent) {
+	if mc.onMouseEvent != nil {
+		mc.onMouseEvent(int64(me.Position.X), int64(me.Position.Y), ME_DOWN)
+	}
 }
 
-func (mc *MoverWidget) Tapped(*fyne.PointEvent) {
-	fmt.Println("Tapped")
+func (mc *MoverWidget) MouseUp(me *desktop.MouseEvent) {
+	if mc.onMouseEvent != nil {
+		mc.onMouseEvent(int64(me.Position.X), int64(me.Position.Y), ME_UP)
+	}
+}
+
+func (mc *MoverWidget) Tapped(me *fyne.PointEvent) {
+	if mc.onMouseEvent != nil {
+		mc.onMouseEvent(int64(me.Position.X), int64(me.Position.Y), ME_TAP)
+	}
+}
+
+func (mc *MoverWidget) DoubleTapped(me *fyne.PointEvent) {
+	if mc.onMouseEvent != nil {
+		mc.onMouseEvent(int64(me.Position.X), int64(me.Position.Y), ME_DTAP)
+	}
 }
 
 var _ desktop.Mouseable = (*MoverWidget)(nil)
 var _ fyne.Tappable = (*MoverWidget)(nil)
+var _ fyne.DoubleTappable = (*MoverWidget)(nil)
 
 // Create a Widget and Extend (initialiase) the BaseWidget
 func NewMoverWidget(cx, cy float64) *MoverWidget {

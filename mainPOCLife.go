@@ -26,6 +26,19 @@ var (
 	rleFile     *RLE
 )
 
+func POCLifeMouseEvent(x, y int64, et MoverMouseEventType) {
+	switch et {
+	case ME_TAP:
+		fmt.Printf("TAP: %d, %d\n", x, y)
+	case ME_DTAP:
+		fmt.Printf("DTAP: %d, %d\n", x, y)
+	case ME_UP:
+		fmt.Printf("UP: %d, %d\n", x, y)
+	case ME_DOWN:
+		fmt.Printf("DOWN: %d, %d\n", x, y)
+	}
+}
+
 func POCLifeKeyPress(key string) {
 	switch key {
 	case "F1":
@@ -167,7 +180,7 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		onUpdateBefore()
 		return true
 	})
-
+	moverWidget.SetOnMouseEvent(POCLifeMouseEvent)
 	return container.NewBorder(topC, botC, nil, nil, moverWidget)
 }
 
