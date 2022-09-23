@@ -58,8 +58,10 @@ func TestLifeTiming(t *testing.T) {
 }
 
 func LifeTiming(t *testing.T) {
-	rle := &RLE{}
-	rle.Load("testdata/1234_synth.rle")
+	rle, err := NewRleFile("testdata/1234_synth.rle")
+	if err != nil {
+		t.Errorf("RLE File load failed. %e", err)
+	}
 	tims := make([]int64, 0)
 	var timTot int64 = 0
 	tim := time.Now().UnixMilli()
@@ -86,8 +88,10 @@ func LifeTiming(t *testing.T) {
 }
 
 func TestLifeNextGen(t *testing.T) {
-	rle := &RLE{}
-	rle.Load("testdata/ibeacon.rle")
+	rle, err := NewRleFile("testdata/ibeacon.rle")
+	if err != nil {
+		t.Errorf("RLE File load failed. %e", err)
+	}
 	if len(rle.coords) != 36 {
 		t.Errorf("ibeacon: Expected len(coords):%d actual len(coords):%d", 36, len(rle.coords))
 	}
@@ -99,8 +103,10 @@ func TestLifeNextGen(t *testing.T) {
 }
 
 func TestLifeRLE(t *testing.T) {
-	rle := &RLE{}
-	rle.Load("testdata/rats.rle")
+	rle, err := NewRleFile("testdata/rats.rle")
+	if err != nil {
+		t.Errorf("RLE File load failed. %e", err)
+	}
 	assertStr(t, "$rats", rle.name)
 	assertStr(t, "David Buckingham", rle.owner)
 	assertStr(t, "testdata/rats.rle", rle.fileName)

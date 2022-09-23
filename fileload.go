@@ -23,12 +23,13 @@ type RLE struct {
 	comment  string
 }
 
-func (rle *RLE) Load(fileName string) error {
-	file, err := os.Open(fileName)
+func NewRleFile(fileName string) (*RLE, error) {
+	rle := &RLE{fileName: fileName}
+
+	file, err := os.Open(rle.fileName)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	rle.fileName = fileName
 	scanner := bufio.NewScanner(file)
 	var sb strings.Builder
 	ln := 0
@@ -55,9 +56,9 @@ func (rle *RLE) Load(fileName string) error {
 	}
 	rle.decoded, rle.coords = rle.rleDecodeString(sb.String())
 	if scanner.Err() != nil {
-		return scanner.Err()
+		return nil, scanner.Err()
 	}
-	return nil
+	return rle, nil
 }
 
 func (rle *RLE) rleDecodeString(rleStr string) (string, []int64) {

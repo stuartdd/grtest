@@ -91,13 +91,11 @@ func (cc *MoverController) AddOnUpdateAfter(update func(float64) bool) {
 	cc.updateAfter = append(cc.updateAfter, update)
 }
 
-//
 // Main update fllo for animation of background loop
 //
 // If any updateBefore returns false then no movers are updated and no updateAfters are called
 // Each movers update is called
 // If an updateAfter return false then the following updateAfters and not called.
-//
 func (cc *MoverController) Update(time float64) {
 	if len(cc.updateBefore) > 0 {
 		q := true
