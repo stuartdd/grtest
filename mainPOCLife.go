@@ -23,19 +23,26 @@ var (
 	stepButton  *widget.Button
 	timeText    = widget.NewLabel("")
 	moverWidget *MoverWidget
+	gridWidget  *MoverWidget
 	rleFile     *RLE
 )
 
-func POCLifeMouseEvent(x, y int64, et MoverMouseEventType) {
+func POCLifeMouseEvent(x, y float32, et MoverMouseEventType) {
+	x = x / float32(gridSize)
+	y = y / float32(gridSize)
 	switch et {
 	case ME_TAP:
-		fmt.Printf("TAP: %d, %d\n", x, y)
+		fmt.Printf("TAP: %f, %f\n", x, y)
+		lifeGen.AddCell(int64(x), int64(y), lifeGen.currentGenId)
+		onUpdateBefore()
 	case ME_DTAP:
-		fmt.Printf("DTAP: %d, %d\n", x, y)
+		fmt.Printf("DTAP: %f, %f\n", x, y)
+	case ME_MOVE:
+		fmt.Printf("MOVE: %f, %f\n", x, y)
 	case ME_UP:
-		fmt.Printf("UP: %d, %d\n", x, y)
+		fmt.Printf("UP: %f, %f\n", x, y)
 	case ME_DOWN:
-		fmt.Printf("DOWN: %d, %d\n", x, y)
+		fmt.Printf("DOWN: %f, %f\n", x, y)
 	}
 }
 
@@ -90,6 +97,8 @@ func POCLifeStop() {
 */
 func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
 	moverWidget = NewMoverWidget(width, height)
+	gridWidget = NewMoverWidget(width, height)
+
 	topC := container.NewHBox()
 	botC := container.NewPadded()
 	startButton = widget.NewButton("Start (F1)", func() {
@@ -180,7 +189,7 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		onUpdateBefore()
 		return true
 	})
-	moverWidget.SetOnMouseEvent(POCLifeMouseEvent)
+	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, ME_MOVE|ME_DOWN|ME_UP|ME_TAP)
 	return container.NewBorder(topC, botC, nil, nil, moverWidget)
 }
 
@@ -203,19 +212,28 @@ func LifeResetDot() {
 	}
 }
 
-func LifeGetDot(x, y, xOfs, yOfs int64, gen LifeGenId, container *MoverWidget) {
+// func dotTo(c *canvas.Circle, x, y float32, show bool) {
+// 	gs2 := float32(gridSize / 2)
+// 	c.Position1 = fyne.Position{X: x - gs2, Y: y - gs2}
+// 	c.Position2 = fyne.Position{X: x + gs2, Y: y + gs2}
+// }
+
+func LifeGetDot(x, y, xOfs, yOfs int64, gen LifeGenId, moverWidget *MoverWidget) {
 	if dotsPos >= len(dots) {
 		for i := 0; i < 20; i++ {
 			d := canvas.NewCircle(color.RGBA{0, 0, 255, 255})
 			d.Hide()
 			dots = append(dots, d)
-			container.Add(d)
+			moverWidget.Add(d)
 		}
 	}
+	gs2 := float32(gridSize / 2)
+	x = xOfs + (x * int64(gridSize))
+	y = xOfs + (y * int64(gridSize))
 	dot := dots[dotsPos]
 	dotsPos++
-	dot.Position1 = fyne.Position{X: float32(xOfs + (x * gridSize)), Y: float32(yOfs + (y * gridSize))}
-	dot.Position2 = fyne.Position{X: float32(xOfs + ((x * gridSize) + gridSize)), Y: float32(yOfs + ((y * gridSize) + gridSize))}
+	dot.Position1 = fyne.Position{X: float32(x) - gs2, Y: float32(y) - gs2}
+	dot.Position2 = fyne.Position{X: float32(x) + gs2, Y: float32(y) + gs2}
 	dot.FillColor = genColor[1]
 	dot.Resize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
 	dot.Show()

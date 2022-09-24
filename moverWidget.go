@@ -15,43 +15,80 @@ type MoverWidget struct {
 	size              fyne.Size
 	onSizeChange      func(fyne.Size, fyne.Size)
 	objects           []fyne.CanvasObject
-	onMouseEvent      func(int64, int64, MoverMouseEventType)
+	onMouseEvent      func(float32, float32, MoverMouseEventType)
+	onMouseMask       MoverMouseEventType
 }
 
 type MoverMouseEventType int
 
 const (
-	ME_DOWN MoverMouseEventType = iota
-	ME_UP
-	ME_TAP
-	ME_DTAP
+	ME_NONE MoverMouseEventType = 0b00000000
+	ME_DOWN MoverMouseEventType = 0b00000001
+	ME_UP   MoverMouseEventType = 0b00000010
+	ME_TAP  MoverMouseEventType = 0b00000100
+	ME_DTAP MoverMouseEventType = 0b00001000
+	ME_MIN  MoverMouseEventType = 0b00010000
+	ME_MOUT MoverMouseEventType = 0b00100000
+	ME_MOVE MoverMouseEventType = 0b01000000
 )
 
-func (mc *MoverWidget) SetOnMouseEvent(f func(int64, int64, MoverMouseEventType)) {
+func (mc *MoverWidget) SetOnMouseEvent(f func(float32, float32, MoverMouseEventType), mask MoverMouseEventType) {
 	mc.onMouseEvent = f
+	mc.SetOnMouseEventMask(mask)
+}
+
+func (mc *MoverWidget) SetOnMouseEventMask(mask MoverMouseEventType) {
+	if mask == ME_NONE {
+		mc.onMouseMask = ME_NONE
+	} else {
+		mc.onMouseMask = mc.onMouseMask | mask
+	}
+}
+
+// MouseIn is a hook that is called if the mouse pointer enters the element.
+func (mc *MoverWidget) MouseIn(me *desktop.MouseEvent) {
+	if mc.onMouseEvent != nil && (mc.onMouseMask&ME_MIN) != 0 {
+		mc.onMouseEvent(me.Position.X, me.Position.Y, ME_MIN)
+	}
+}
+
+// MouseMoved is a hook that is called if the mouse pointer moved over the element.
+func (mc *MoverWidget) MouseMoved(me *desktop.MouseEvent) {
+	if mc.onMouseEvent != nil && (mc.onMouseMask&ME_MOVE) != 0 {
+		mc.onMouseEvent(me.Position.X, me.Position.Y, ME_MOVE)
+	}
+}
+
+// MouseOut is a hook that is called if the mouse pointer leaves the element.
+func (mc *MoverWidget) MouseOut() {
+	if mc.onMouseEvent != nil && (mc.onMouseMask&ME_MOUT) != 0 {
+		mc.onMouseEvent(0, 0, ME_MOUT)
+	}
 }
 
 func (mc *MoverWidget) MouseDown(me *desktop.MouseEvent) {
-	if mc.onMouseEvent != nil {
-		mc.onMouseEvent(int64(me.Position.X), int64(me.Position.Y), ME_DOWN)
+	if mc.onMouseEvent != nil && (mc.onMouseMask&ME_DOWN) != 0 {
+		mc.onMouseEvent(me.Position.X, me.Position.Y, ME_DOWN)
 	}
 }
 
 func (mc *MoverWidget) MouseUp(me *desktop.MouseEvent) {
-	if mc.onMouseEvent != nil {
-		mc.onMouseEvent(int64(me.Position.X), int64(me.Position.Y), ME_UP)
+	if mc.onMouseEvent != nil && (mc.onMouseMask&ME_UP) != 0 {
+		mc.onMouseEvent(me.Position.X, me.Position.Y, ME_UP)
 	}
 }
 
 func (mc *MoverWidget) Tapped(me *fyne.PointEvent) {
-	if mc.onMouseEvent != nil {
-		mc.onMouseEvent(int64(me.Position.X), int64(me.Position.Y), ME_TAP)
+	if mc.onMouseEvent != nil && (mc.onMouseMask&ME_TAP) != 0 {
+		d := me.AbsolutePosition.X - me.Position.X
+		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, ME_TAP)
 	}
 }
 
 func (mc *MoverWidget) DoubleTapped(me *fyne.PointEvent) {
-	if mc.onMouseEvent != nil {
-		mc.onMouseEvent(int64(me.Position.X), int64(me.Position.Y), ME_DTAP)
+	if mc.onMouseEvent != nil && (mc.onMouseMask&ME_DTAP) != 0 {
+		d := me.AbsolutePosition.X - me.Position.X
+		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, ME_DTAP)
 	}
 }
 
@@ -62,9 +99,10 @@ var _ fyne.DoubleTappable = (*MoverWidget)(nil)
 // Create a Widget and Extend (initialiase) the BaseWidget
 func NewMoverWidget(cx, cy float64) *MoverWidget {
 	w := &MoverWidget{ // Create this widget with an initial text value
-		objects: make([]fyne.CanvasObject, 0),
-		minSize: fyne.Size{Width: float32(cx), Height: float32(cy)},
-		size:    fyne.Size{Width: float32(cx), Height: float32(cy)},
+		objects:     make([]fyne.CanvasObject, 0),
+		minSize:     fyne.Size{Width: float32(cx), Height: float32(cy)},
+		size:        fyne.Size{Width: float32(cx), Height: float32(cy)},
+		onMouseMask: ME_NONE,
 	}
 	w.ExtendBaseWidget(w) // Initialiase the BaseWidget
 	return w
