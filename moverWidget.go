@@ -14,7 +14,8 @@ type MoverWidget struct {
 	minSize           fyne.Size
 	size              fyne.Size
 	onSizeChange      func(fyne.Size, fyne.Size)
-	objects           []fyne.CanvasObject
+	bottomObjects     []fyne.CanvasObject
+	topObjects        []fyne.CanvasObject
 	onMouseEvent      func(float32, float32, MoverMouseEventType)
 	onMouseMask       MoverMouseEventType
 }
@@ -99,10 +100,11 @@ var _ fyne.DoubleTappable = (*MoverWidget)(nil)
 // Create a Widget and Extend (initialiase) the BaseWidget
 func NewMoverWidget(cx, cy float64) *MoverWidget {
 	w := &MoverWidget{ // Create this widget with an initial text value
-		objects:     make([]fyne.CanvasObject, 0),
-		minSize:     fyne.Size{Width: float32(cx), Height: float32(cy)},
-		size:        fyne.Size{Width: float32(cx), Height: float32(cy)},
-		onMouseMask: ME_NONE,
+		bottomObjects: make([]fyne.CanvasObject, 0),
+		topObjects:    make([]fyne.CanvasObject, 0),
+		minSize:       fyne.Size{Width: float32(cx), Height: float32(cy)},
+		size:          fyne.Size{Width: float32(cx), Height: float32(cy)},
+		onMouseMask:   ME_NONE,
 	}
 	w.ExtendBaseWidget(w) // Initialiase the BaseWidget
 	return w
@@ -115,11 +117,11 @@ func (w *MoverWidget) CreateRenderer() fyne.WidgetRenderer {
 }
 
 // Add canvas objects to the widget
-func (w *MoverWidget) Add(co fyne.CanvasObject) {
+func (w *MoverWidget) AddBottom(co fyne.CanvasObject) {
 	if co == nil {
 		return
 	}
-	w.objects = append(w.objects, co)
+	w.bottomObjects = append(w.bottomObjects, co)
 }
 
 // Add canvas objects to the widget
@@ -127,7 +129,14 @@ func (w *MoverWidget) AddMover(mover Movable) {
 	if mover == nil {
 		return
 	}
-	w.objects = append(w.objects, mover.GetCanvasObjects()...)
+	w.bottomObjects = append(w.bottomObjects, mover.GetCanvasObjects()...)
+}
+
+func (w *MoverWidget) AddTop(co fyne.CanvasObject) {
+	if co == nil {
+		return
+	}
+	w.topObjects = append(w.topObjects, co)
 }
 
 func (w *MoverWidget) SetOnSizeChange(f func(fyne.Size, fyne.Size)) {
@@ -171,7 +180,7 @@ func (r *moverWidgetRenderer) MinSize() fyne.Size {
 
 // Return a list of each canvas object.
 func (r *moverWidgetRenderer) Objects() []fyne.CanvasObject {
-	return r.widget.objects
+	return append(r.widget.bottomObjects, r.widget.topObjects...)
 }
 
 // Cleanup if resources have been allocated

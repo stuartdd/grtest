@@ -34,14 +34,14 @@ func main() {
 	})
 
 	mainWindow.SetContent(mainContainer)
-	mainController.AddOnUpdateAfter(func(f float64) bool {
+	mainController.AddAfterUpdate(func(f float64) bool {
 		mainContainer.Refresh()
 		return true
 	})
 
 	go func() {
 		time.Sleep(time.Millisecond * 500)
-		mainController.InitAnimationController(50, nil)
+		mainController.InitAnimationController(100, nil)
 	}()
 
 	mainWindow.ShowAndRun()

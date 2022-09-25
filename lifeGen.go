@@ -132,6 +132,7 @@ func (lg *LifeGen) index(gen LifeGenId) *LifeCell {
 // Scan the current generation and produce the next generation.
 // Then swap generations so the next gen becomes the current gen
 func (lg *LifeGen) NextGen() {
+
 	lg.runFor = lg.runFor - 1
 	if lg.runFor < 0 {
 		if lg.onGenStopped != nil {
@@ -142,9 +143,6 @@ func (lg *LifeGen) NextGen() {
 		return
 	}
 	// If startTimeMillis is not 0 then we a concurrently calling NextGen before it is finished!
-	if lg.startTimeMillis > 0 {
-		return
-	}
 	//
 	// Record start time
 	// Set up the index
@@ -359,6 +357,27 @@ func (lg *LifeGen) AddCellsAtOffset(x, y int64, c []int64, gen LifeGenId) int {
 	}
 	lg.cellCount[gen] = lg.cellCount[gen] + n
 	return n
+}
+
+func (lg *LifeGen) RemoveCell(x, y int64, genId LifeGenId) {
+	c := lg.generations[genId]
+	if c == nil {
+		return
+	}
+	if c.x == x && c.y == y {
+		lg.generations[genId] = c.next
+		return
+	}
+	p := c
+	c = c.next
+	for c != nil {
+		if c.x == x && c.y == y {
+			p.next = c.next
+			return
+		}
+		p = c
+		c = c.next
+	}
 }
 
 // Add a cell to a specific generation defined by it's x,y value.

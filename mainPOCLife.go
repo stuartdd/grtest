@@ -11,41 +11,57 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-const RUN_FOR_EVER = math.MaxInt
+const (
+	RUN_FOR_EVER = math.MaxInt
+)
 
 var (
 	lifeGen     *LifeGen
 	dots        []*canvas.Circle = make([]*canvas.Circle, 0)
 	dotsPos     int              = 0
-	gridSize    int64            = 22
+	gridSize    int64            = 6
 	xOffset     int64            = 10
 	yOffset     int64            = 10
-	selectX     int64
-	selectY     int64
-	genColor    []color.Color = []color.Color{color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}}
 	stopButton  *widget.Button
 	startButton *widget.Button
 	stepButton  *widget.Button
 	timeText    = widget.NewLabel("")
 	moverWidget *MoverWidget
-	lines       *MoverLines
+	targetDot   *canvas.Circle
 	rleFile     *RLE
+
+	FC_EMPTY = color.RGBA{255, 0, 0, 255}
+	FC_ADDED = color.RGBA{0, 255, 0, 255}
+	FC_FULL  = color.RGBA{0, 0, 255, 255}
+	FC_CELL  = color.RGBA{0, 255, 255, 255}
 )
 
 func POCLifeMouseEvent(x, y float32, et MoverMouseEventType) {
-	gridX := int64(x / float32(gridSize))
-	gridY := int64(y / float32(gridSize))
-	gsW := lines.GetSizeAndCenter().Width / 2
-	gsH := lines.GetSizeAndCenter().Height / 2
+	cellX, cellY := screenToCell(x, y)
 	switch et {
 	case ME_TAP:
-		fmt.Printf("TAP: %d, %d\n", selectX, selectY)
-		lifeGen.AddCell(selectX, selectY, lifeGen.currentGenId)
+		c := lifeGen.GetCellFast(cellX, cellY)
+		if c == 0 {
+			lifeGen.AddCell(cellX, cellY, lifeGen.currentGenId)
+			targetDot.FillColor = FC_ADDED
+		} else {
+			lifeGen.RemoveCell(cellX, cellY, lifeGen.currentGenId)
+			targetDot.FillColor = FC_EMPTY
+		}
+		targetDot.Show()
 	case ME_MOVE:
-		selectX = gridX
-		selectY = gridY
-		fmt.Printf("MOVE: %d, %d\n", selectX, selectY)
-		lines.SetCenter(float64(gridX*gridSize)+gsW, float64(gridY*gridSize)+gsH)
+		posX, posY := cellToScreen(cellX, cellY)
+		targetDot.Position1 = fyne.Position{X: posX, Y: posY}
+		targetDot.Position2 = fyne.Position{X: posX + float32(gridSize), Y: posY + float32(gridSize)}
+		targetDot.Resize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
+		c := lifeGen.GetCellFast(cellX, cellY)
+		if c == 0 {
+			targetDot.FillColor = FC_EMPTY
+		} else {
+			targetDot.FillColor = FC_FULL
+		}
+		targetDot.Show()
+
 	}
 }
 
@@ -86,7 +102,7 @@ func POCLifeSetGridSize(inc bool) {
 			gridSize--
 		}
 	}
-	lines.SetSize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
+	targetDot.Resize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
 }
 
 func POCLifeRunFor(n int) {
@@ -94,7 +110,10 @@ func POCLifeRunFor(n int) {
 		POCLifeStop()
 	})
 	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, ME_NONE)
-	lines.SetVisible(false)
+	if mainController.animation != nil {
+		mainController.animation.delay = 100
+	}
+	targetDot.Hide()
 	stepButton.Disable()
 	startButton.Disable()
 	stopButton.Enable()
@@ -103,7 +122,10 @@ func POCLifeRunFor(n int) {
 func POCLifeStop() {
 	lifeGen.SetRunFor(0, nil)
 	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, ME_MOVE|ME_DOWN|ME_UP|ME_TAP)
-	lines.SetVisible(true)
+	if mainController.animation != nil {
+		mainController.animation.delay = 200
+	}
+	targetDot.Show()
 	stepButton.Enable()
 	startButton.Enable()
 	stopButton.Disable()
@@ -114,7 +136,7 @@ func POCLifeStop() {
 */
 func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
 	moverWidget = NewMoverWidget(width, height)
-	lines = NewMoverRect(color.RGBA{250, 0, 0, 255}, 200, 200, float64(gridSize), float64(gridSize), 0)
+	targetDot = canvas.NewCircle(color.RGBA{250, 0, 0, 255})
 
 	topC := container.NewHBox()
 	botC := container.NewPadded()
@@ -194,25 +216,21 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		POCLifeKeyPress(string(key.Name))
 	})
 
-	controller.AddOnUpdateBefore(func(f float64) bool {
+	controller.AddBeforeUpdate(func(f float64) bool {
 		lifeGen.NextGen()
-		onUpdateBefore()
+		LifeResetDot()
+		gen := lifeGen.currentGenId
+
+		cell := lifeGen.generations[lifeGen.currentGenId]
+		for cell != nil {
+			LifeGetDot(cell.x, cell.y, gen, moverWidget)
+			cell = cell.next
+		}
+		timeText.SetText(fmt.Sprintf("Time: %05dms Gen: %05d Cells:%05d", lifeGen.timeMillis, lifeGen.countGen, lifeGen.cellCount[lifeGen.currentGenId]))
 		return false
 	})
-	moverWidget.AddMover(lines)
+	moverWidget.AddTop(targetDot)
 	return container.NewBorder(topC, botC, nil, nil, moverWidget)
-}
-
-func onUpdateBefore() {
-	LifeResetDot()
-	gen := lifeGen.currentGenId
-
-	cell := lifeGen.generations[lifeGen.currentGenId]
-	for cell != nil {
-		LifeGetDot(cell.x, cell.y, xOffset, yOffset, gen, moverWidget)
-		cell = cell.next
-	}
-	timeText.SetText(fmt.Sprintf("Time: %05dms Gen: %05d Cells:%05d", lifeGen.timeMillis, lifeGen.countGen, lifeGen.cellCount[lifeGen.currentGenId]))
 }
 
 func LifeResetDot() {
@@ -222,31 +240,35 @@ func LifeResetDot() {
 	}
 }
 
-// func dotTo(c *canvas.Circle, x, y float32, show bool) {
-// 	gs2 := float32(gridSize / 2)
-// 	c.Position1 = fyne.Position{X: x - gs2, Y: y - gs2}
-// 	c.Position2 = fyne.Position{X: x + gs2, Y: y + gs2}
-// }
-
-func LifeGetDot(x, y, xOfs, yOfs int64, gen LifeGenId, moverWidget *MoverWidget) {
+func LifeGetDot(x, y int64, gen LifeGenId, moverWidget *MoverWidget) {
 	if dotsPos >= len(dots) {
 		for i := 0; i < 20; i++ {
 			d := canvas.NewCircle(color.RGBA{0, 0, 255, 255})
 			d.Hide()
 			dots = append(dots, d)
-			moverWidget.Add(d)
+			moverWidget.AddBottom(d)
 		}
 	}
-	gs2 := float32(gridSize / 2)
-	x = xOfs + (x * int64(gridSize))
-	y = xOfs + (y * int64(gridSize))
 	dot := dots[dotsPos]
 	dotsPos++
-	dot.Position1 = fyne.Position{X: float32(x) - gs2, Y: float32(y) - gs2}
-	dot.Position2 = fyne.Position{X: float32(x) + gs2, Y: float32(y) + gs2}
-	dot.FillColor = genColor[1]
+	posX, posY := cellToScreen(x, y)
+	dot.Position1 = fyne.Position{X: posX, Y: posY}
+	dot.Position2 = fyne.Position{X: posX + float32(gridSize), Y: posY + float32(gridSize)}
+	dot.FillColor = FC_CELL
 	dot.Resize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
 	dot.Show()
+}
+
+func cellToScreen(cellX, cellY int64) (float32, float32) {
+	x := ((xOffset + cellX) * gridSize)
+	y := ((yOffset + cellY) * gridSize)
+	return float32(x), float32(y)
+}
+
+func screenToCell(mouseX, mouseY float32) (int64, int64) {
+	cellX := int64((mouseX / float32(gridSize))) - xOffset
+	cellY := int64((mouseY / float32(gridSize))) - yOffset
+	return cellX, cellY
 }
 
 func seperator() *widget.Separator {
