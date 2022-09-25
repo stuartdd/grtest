@@ -29,7 +29,9 @@ type LifeGen struct {
 	countGen        int
 	startTimeMillis int64
 	timeMillis      int64
-	genDone         func(l *LifeGen)
+	onGenDone       func(l *LifeGen)
+	onGenStopped    func(l *LifeGen)
+	runFor          int
 }
 
 const (
@@ -65,6 +67,20 @@ func NewLifeGen(genDone func(*LifeGen)) *LifeGen {
 	return lg
 }
 
+func (lg *LifeGen) SetRunFor(n int, f func(*LifeGen)) {
+	lg.onGenStopped = nil
+	lg.runFor = n
+	lg.onGenStopped = f
+}
+
+func (lg *LifeGen) GetRunFor() int {
+	return lg.runFor
+}
+
+func (lg *LifeGen) IsRunning() bool {
+	return lg.runFor > 0
+}
+
 func (lg *LifeGen) Clear() {
 	lg.cellIndex[LIFE_GEN_1] = nil
 	lg.cellIndex[LIFE_GEN_2] = nil
@@ -74,6 +90,7 @@ func (lg *LifeGen) Clear() {
 	lg.cellCount[LIFE_GEN_2] = 0
 	lg.currentGenId = LIFE_GEN_1
 	lg.countGen = 0
+	lg.runFor = 0
 	lg.startTimeMillis = 0
 	lg.timeMillis = 0
 }
@@ -115,6 +132,15 @@ func (lg *LifeGen) index(gen LifeGenId) *LifeCell {
 // Scan the current generation and produce the next generation.
 // Then swap generations so the next gen becomes the current gen
 func (lg *LifeGen) NextGen() {
+	lg.runFor = lg.runFor - 1
+	if lg.runFor < 0 {
+		if lg.onGenStopped != nil {
+			f := lg.onGenStopped
+			lg.onGenStopped = nil
+			f(lg)
+		}
+		return
+	}
 	// If startTimeMillis is not 0 then we a concurrently calling NextGen before it is finished!
 	if lg.startTimeMillis > 0 {
 		return
@@ -189,8 +215,8 @@ func (lg *LifeGen) NextGen() {
 	// This is NOT included in the timing as it may involve GUI stuff
 	// If is run as a separate thread so it will not block the generation processing
 	//
-	if lg.genDone != nil {
-		go lg.genDone(lg)
+	if lg.onGenDone != nil {
+		go lg.onGenDone(lg)
 	}
 }
 

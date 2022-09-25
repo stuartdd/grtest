@@ -170,7 +170,7 @@ func (cc *MoverController) InitAnimationController(delay int64, tick func(*Mover
 			for {
 				time.Sleep(time.Millisecond * time.Duration(ac.delay))
 				if ac.running {
-					ac.tick(cc, ac, float32(delay))
+					ac.tick(cc, ac, float32(ac.delay))
 				}
 			}
 		}()

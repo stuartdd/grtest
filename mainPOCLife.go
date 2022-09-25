@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"math"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -10,54 +11,56 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+const RUN_FOR_EVER = math.MaxInt
+
 var (
 	lifeGen     *LifeGen
 	dots        []*canvas.Circle = make([]*canvas.Circle, 0)
 	dotsPos     int              = 0
-	gridSize    int64            = 4
+	gridSize    int64            = 22
 	xOffset     int64            = 10
 	yOffset     int64            = 10
-	genColor    []color.Color    = []color.Color{color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}}
+	selectX     int64
+	selectY     int64
+	genColor    []color.Color = []color.Color{color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}}
 	stopButton  *widget.Button
 	startButton *widget.Button
 	stepButton  *widget.Button
 	timeText    = widget.NewLabel("")
 	moverWidget *MoverWidget
-	gridWidget  *MoverWidget
+	lines       *MoverLines
 	rleFile     *RLE
 )
 
 func POCLifeMouseEvent(x, y float32, et MoverMouseEventType) {
-	x = x / float32(gridSize)
-	y = y / float32(gridSize)
+	gridX := int64(x / float32(gridSize))
+	gridY := int64(y / float32(gridSize))
+	gsW := lines.GetSizeAndCenter().Width / 2
+	gsH := lines.GetSizeAndCenter().Height / 2
 	switch et {
 	case ME_TAP:
-		fmt.Printf("TAP: %f, %f\n", x, y)
-		lifeGen.AddCell(int64(x), int64(y), lifeGen.currentGenId)
-		onUpdateBefore()
-	case ME_DTAP:
-		fmt.Printf("DTAP: %f, %f\n", x, y)
+		fmt.Printf("TAP: %d, %d\n", selectX, selectY)
+		lifeGen.AddCell(selectX, selectY, lifeGen.currentGenId)
 	case ME_MOVE:
-		fmt.Printf("MOVE: %f, %f\n", x, y)
-	case ME_UP:
-		fmt.Printf("UP: %f, %f\n", x, y)
-	case ME_DOWN:
-		fmt.Printf("DOWN: %f, %f\n", x, y)
+		selectX = gridX
+		selectY = gridY
+		fmt.Printf("MOVE: %d, %d\n", selectX, selectY)
+		lines.SetCenter(float64(gridX*gridSize)+gsW, float64(gridY*gridSize)+gsH)
 	}
 }
 
 func POCLifeKeyPress(key string) {
 	switch key {
 	case "F1":
-		if mainController.IsAnimation() {
+		if lifeGen.IsRunning() {
 			POCLifeStop()
 		} else {
-			POCLifeStart()
+			POCLifeRunFor(RUN_FOR_EVER)
 		}
 		return
 	case "F2":
-		if !mainController.IsAnimation() {
-			mainController.Update(0)
+		if !lifeGen.IsRunning() {
+			POCLifeRunFor(1)
 		}
 		return
 	case "Up":
@@ -69,24 +72,38 @@ func POCLifeKeyPress(key string) {
 	case "Right":
 		xOffset = xOffset - 50
 	case "=", "+":
-		gridSize = gridSize + 1
+		POCLifeSetGridSize(true)
 	case "-", "_":
-		if gridSize > 1 {
-			gridSize = gridSize - 1
-		}
+		POCLifeSetGridSize(false)
 	}
-	onUpdateBefore()
 }
 
-func POCLifeStart() {
-	mainController.StartAnimation()
+func POCLifeSetGridSize(inc bool) {
+	if inc {
+		gridSize++
+	} else {
+		if gridSize > 1 {
+			gridSize--
+		}
+	}
+	lines.SetSize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
+}
+
+func POCLifeRunFor(n int) {
+	lifeGen.SetRunFor(n, func(lg *LifeGen) {
+		POCLifeStop()
+	})
+	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, ME_NONE)
+	lines.SetVisible(false)
 	stepButton.Disable()
 	startButton.Disable()
 	stopButton.Enable()
 }
 
 func POCLifeStop() {
-	mainController.StopAnimation()
+	lifeGen.SetRunFor(0, nil)
+	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, ME_MOVE|ME_DOWN|ME_UP|ME_TAP)
+	lines.SetVisible(true)
 	stepButton.Enable()
 	startButton.Enable()
 	stopButton.Disable()
@@ -97,15 +114,15 @@ func POCLifeStop() {
 */
 func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
 	moverWidget = NewMoverWidget(width, height)
-	gridWidget = NewMoverWidget(width, height)
+	lines = NewMoverRect(color.RGBA{250, 0, 0, 255}, 200, 200, float64(gridSize), float64(gridSize), 0)
 
 	topC := container.NewHBox()
 	botC := container.NewPadded()
 	startButton = widget.NewButton("Start (F1)", func() {
-		POCLifeStart()
+		POCLifeRunFor(RUN_FOR_EVER)
 	})
 	stepButton = widget.NewButton("Step (F2)", func() {
-		controller.Update(0)
+		POCLifeRunFor(1)
 	})
 	stopButton = widget.NewButton("Stop (F1)", func() {
 		POCLifeStop()
@@ -128,21 +145,13 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 				}
 				lifeGen.Clear()
 				lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
-				onUpdateBefore()
 			}
 		})
 	}))
 	topC.Add(widget.NewButton("Restart", func() {
-		if mainController.IsAnimation() {
-			POCLifeStop()
-			lifeGen.Clear()
-			lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
-			POCLifeStart()
-		} else {
-			lifeGen.Clear()
-			lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
-			onUpdateBefore()
-		}
+		POCLifeStop()
+		lifeGen.Clear()
+		lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
 	}))
 	topC.Add(seperator())
 	topC.Add(startButton)
@@ -178,6 +187,7 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	}
 	lifeGen = NewLifeGen(nil)
 	lifeGen.AddCellsAtOffset(10, 10, rleFile.coords, lifeGen.currentGenId)
+	POCLifeRunFor(RUN_FOR_EVER)
 	mainWindow.SetTitle(fmt.Sprintf("File:%s", rleFile.fileName))
 
 	controller.SetOnKeyPress(func(key *fyne.KeyEvent) {
@@ -187,9 +197,9 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	controller.AddOnUpdateBefore(func(f float64) bool {
 		lifeGen.NextGen()
 		onUpdateBefore()
-		return true
+		return false
 	})
-	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, ME_MOVE|ME_DOWN|ME_UP|ME_TAP)
+	moverWidget.AddMover(lines)
 	return container.NewBorder(topC, botC, nil, nil, moverWidget)
 }
 

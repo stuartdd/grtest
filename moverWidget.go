@@ -151,8 +151,6 @@ func newMoverWidgetRenderer(myWidget *MoverWidget) *moverWidgetRenderer {
 
 // The Refresh() method is called if the state of the widget changes or the
 // theme is changed
-//
-// Note: The background and foreground colours are set from the current theme
 func (r *moverWidgetRenderer) Refresh() {
 }
 
