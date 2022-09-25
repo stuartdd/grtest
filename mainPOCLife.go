@@ -3,16 +3,11 @@ package main
 import (
 	"fmt"
 	"image/color"
-	"math"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-)
-
-const (
-	RUN_FOR_EVER = math.MaxInt
 )
 
 var (
@@ -207,7 +202,7 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	if err != nil {
 		panic(err)
 	}
-	lifeGen = NewLifeGen(nil)
+	lifeGen = NewLifeGen(nil, 0)
 	lifeGen.AddCellsAtOffset(10, 10, rleFile.coords, lifeGen.currentGenId)
 	POCLifeRunFor(RUN_FOR_EVER)
 	mainWindow.SetTitle(fmt.Sprintf("File:%s", rleFile.fileName))
@@ -251,7 +246,11 @@ func LifeGetDot(x, y int64, gen LifeGenId, moverWidget *MoverWidget) {
 	}
 	dot := dots[dotsPos]
 	dotsPos++
-	posX, posY := cellToScreen(x, y)
+	//
+	//	posX, posY := cellToScreen(x, y)
+	//
+	posX := float32((xOffset + x) * gridSize)
+	posY := float32((yOffset + y) * gridSize)
 	dot.Position1 = fyne.Position{X: posX, Y: posY}
 	dot.Position2 = fyne.Position{X: posX + float32(gridSize), Y: posY + float32(gridSize)}
 	dot.FillColor = FC_CELL

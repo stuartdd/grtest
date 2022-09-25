@@ -74,7 +74,7 @@ func LifeTiming(t *testing.T) {
 		timTot = timTot + tim
 		tims = append(tims, tim)
 		tim = time.Now().UnixMilli()
-	})
+	}, RUN_FOR_EVER)
 	lg.AddCellsAtOffset(0, 0, rle.coords, lg.currentGenId)
 	lg.AddCellsAtOffset(100, 100, rle.coords, lg.currentGenId)
 	lg.AddCellsAtOffset(200, 200, rle.coords, lg.currentGenId)
@@ -97,7 +97,7 @@ func TestLifeNextGen(t *testing.T) {
 	}
 	lg := NewLifeGen(func(l *LifeGen) {
 		fmt.Println(l)
-	})
+	}, RUN_FOR_EVER)
 	lg.AddCellsAtOffset(0, 0, rle.coords, lg.currentGenId)
 	lg.NextGen()
 }
@@ -127,7 +127,7 @@ func assertStr(t *testing.T, exp, act string) {
 }
 
 func TestLifeGenCountCells(t *testing.T) {
-	lg := NewLifeGen(nil)
+	lg := NewLifeGen(nil, RUN_FOR_EVER)
 	lg.AddCellsAtOffset(0, 0, []int64{2, 2}, lg.currentGenId)
 	testCountNear(t, lg, 2, 2, 0)
 	lg.AddCellsAtOffset(0, 0, []int64{1, 1}, lg.currentGenId)
@@ -173,7 +173,7 @@ func TestLifeGenCountCells(t *testing.T) {
 }
 
 func TestLifeGenAddCells(t *testing.T) {
-	lg := NewLifeGen(nil)
+	lg := NewLifeGen(nil, RUN_FOR_EVER)
 	lg.AddCellsAtOffset(0, 0, []int64{1, 1, 2, 2}, lg.currentGenId)
 	testGen(t, lg, "Add Cells:", "1,1 2,2")
 	lg.AddCellsAtOffset(0, 0, []int64{0, 0, 1, 1, 2, 2}, lg.currentGenId)
@@ -181,7 +181,7 @@ func TestLifeGenAddCells(t *testing.T) {
 }
 
 func TestLifeGen(t *testing.T) {
-	lg := NewLifeGen(nil)
+	lg := NewLifeGen(nil, RUN_FOR_EVER)
 	testGen(t, lg, "Empty gen:", "None")
 	testGet(t, lg, 0, 0, 0)
 	lg.AddCell(100, 100, lg.currentGenId)

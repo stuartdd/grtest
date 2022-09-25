@@ -7,7 +7,10 @@ import (
 	"time"
 )
 
-const indexMult = 100000000
+const (
+	indexMult    = 100000000
+	RUN_FOR_EVER = math.MaxInt
+)
 
 type LifeGenId int
 
@@ -61,9 +64,10 @@ func (ldc *LifeDeadCells) addDeadCell(x, y int64) {
 	ldc.count++
 }
 
-func NewLifeGen(genDone func(*LifeGen)) *LifeGen {
-	lg := &LifeGen{generations: make([]*LifeCell, 2), cellIndex: make([]*LifeCell, 2), cellCount: make([]int, 2)}
+func NewLifeGen(genDone func(*LifeGen), runFor int) *LifeGen {
+	lg := &LifeGen{generations: make([]*LifeCell, 2), cellIndex: make([]*LifeCell, 2), cellCount: make([]int, 2), onGenDone: genDone, onGenStopped: nil}
 	lg.Clear()
+	lg.SetRunFor(runFor, nil)
 	return lg
 }
 
@@ -132,7 +136,12 @@ func (lg *LifeGen) index(gen LifeGenId) *LifeCell {
 // Scan the current generation and produce the next generation.
 // Then swap generations so the next gen becomes the current gen
 func (lg *LifeGen) NextGen() {
-
+	//
+	// Run N (runFor) generations then Stop.
+	// Use the callback (onGenStopped) to notify the controller when stopped.
+	// See RUN_FOR_EVER.
+	// Once called the onGenStopped will need to be set again. It is only called ONCE.
+	//
 	lg.runFor = lg.runFor - 1
 	if lg.runFor < 0 {
 		if lg.onGenStopped != nil {
