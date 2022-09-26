@@ -24,7 +24,7 @@ func main() {
 	mainWindow.SetMaster()
 	mainWindow.SetIcon(GoLogo_Png)
 	mainController = NewMoverController(1000, 1000)
-	mainContainer = mainPOClots(mainWindow, 1000, 1000, mainController)
+	mainContainer = mainPOCLife(mainWindow, 1000, 1000, mainController)
 	mainWindow.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
 		// fmt.Println(key.Name)
 		if key.Name == "Escape" {

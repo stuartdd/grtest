@@ -34,7 +34,7 @@ var (
 func POCLifeMouseEvent(x, y float32, et MoverMouseEventType) {
 	cellX, cellY := screenToCell(x, y)
 	switch et {
-	case ME_TAP:
+	case MM_ME_TAP:
 		c := lifeGen.GetCellFast(cellX, cellY)
 		if c == 0 {
 			lifeGen.AddCell(cellX, cellY, lifeGen.currentGenId)
@@ -44,7 +44,7 @@ func POCLifeMouseEvent(x, y float32, et MoverMouseEventType) {
 			targetDot.FillColor = FC_EMPTY
 		}
 		targetDot.Show()
-	case ME_MOVE:
+	case MM_ME_MOVE:
 		posX, posY := cellToScreen(cellX, cellY)
 		targetDot.Position1 = fyne.Position{X: posX, Y: posY}
 		targetDot.Position2 = fyne.Position{X: posX + float32(gridSize), Y: posY + float32(gridSize)}
@@ -104,7 +104,7 @@ func POCLifeRunFor(n int) {
 	lifeGen.SetRunFor(n, func(lg *LifeGen) {
 		POCLifeStop()
 	})
-	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, ME_NONE)
+	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_NONE)
 	if mainController.animation != nil {
 		mainController.animation.delay = 100
 	}
@@ -116,7 +116,7 @@ func POCLifeRunFor(n int) {
 
 func POCLifeStop() {
 	lifeGen.SetRunFor(0, nil)
-	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, ME_MOVE|ME_DOWN|ME_UP|ME_TAP)
+	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_MOVE|MM_ME_DOWN|MM_ME_UP|MM_ME_TAP)
 	if mainController.animation != nil {
 		mainController.animation.delay = 200
 	}

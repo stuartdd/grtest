@@ -16,7 +16,7 @@ var (
 /*
 -------------------------------------------------------------------- main
 */
-func mainPOClots(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
+func mainPOCLots(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
 
 	cont := container.New(NewStaticLayout(width, height))
 
