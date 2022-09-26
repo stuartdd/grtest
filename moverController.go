@@ -37,11 +37,12 @@ type AnimationController struct {
 }
 
 type MoverController struct {
-	movers       []Movable
-	beforeUpdate []func(float64) bool
-	afterUpdate  []func(float64) bool
-	keyPress     func(*fyne.KeyEvent)
-	animation    *AnimationController
+	movers         []Movable
+	beforeUpdate   []func(float64) bool
+	afterUpdate    []func(float64) bool
+	keyPress       func(*fyne.KeyEvent)
+	animation      *AnimationController
+	animationDelay int64
 }
 
 var _ Movable = (*MoverLines)(nil)
@@ -69,7 +70,7 @@ func (sl *StaticLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 -------------------------------------------------------------------- Controller
 */
 func NewMoverController(width, height float64) *MoverController {
-	c := &MoverController{movers: make([]Movable, 0), beforeUpdate: make([]func(float64) bool, 0)}
+	c := &MoverController{movers: make([]Movable, 0), beforeUpdate: make([]func(float64) bool, 0), animationDelay: 0}
 	return c
 }
 
@@ -77,6 +78,14 @@ func (mc *MoverController) KeyPress(key *fyne.KeyEvent) {
 	if mc.keyPress != nil {
 		mc.keyPress(key)
 	}
+}
+
+func (mc *MoverController) SetAnimationDelay(delay int64) {
+	mc.animationDelay = delay
+}
+
+func (mc *MoverController) GetAnimationDelay() int64 {
+	return mc.animationDelay
 }
 
 func (mc *MoverController) SetOnKeyPress(keyPress func(*fyne.KeyEvent)) {

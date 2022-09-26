@@ -32,7 +32,7 @@ var (
 )
 
 func POCLifeMouseEvent(x, y float32, et MoverMouseEventType) {
-	cellX, cellY := screenToCell(x, y)
+	cellX, cellY := lifeScreenToCell(x, y)
 	switch et {
 	case MM_ME_TAP:
 		c := lifeGen.GetCellFast(cellX, cellY)
@@ -45,7 +45,7 @@ func POCLifeMouseEvent(x, y float32, et MoverMouseEventType) {
 		}
 		targetDot.Show()
 	case MM_ME_MOVE:
-		posX, posY := cellToScreen(cellX, cellY)
+		posX, posY := lifeCellToScreen(cellX, cellY)
 		targetDot.Position1 = fyne.Position{X: posX, Y: posY}
 		targetDot.Position2 = fyne.Position{X: posX + float32(gridSize), Y: posY + float32(gridSize)}
 		targetDot.Resize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
@@ -129,7 +129,9 @@ func POCLifeStop() {
 /*
 -------------------------------------------------------------------- main
 */
-func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
+func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
+	controller.SetAnimationDelay(100)
+
 	moverWidget = NewMoverWidget(width, height)
 	targetDot = canvas.NewCircle(color.RGBA{250, 0, 0, 255})
 
@@ -151,7 +153,7 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		mainWindow.Close()
 	}))
 
-	topC.Add(seperator())
+	topC.Add(lifeSeperator())
 	topC.Add(widget.NewButton("File", func() {
 		go runMyFileDialog(mainWindow, "", func(file string, err error) {
 			if err == nil {
@@ -170,18 +172,18 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		lifeGen.Clear()
 		lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
 	}))
-	topC.Add(seperator())
+	topC.Add(lifeSeperator())
 	topC.Add(startButton)
 	topC.Add(stopButton)
 	topC.Add(stepButton)
-	topC.Add(seperator())
+	topC.Add(lifeSeperator())
 	topC.Add(widget.NewButton("-", func() {
 		POCLifeKeyPress("-")
 	}))
 	topC.Add(widget.NewButton("+", func() {
 		POCLifeKeyPress("+")
 	}))
-	topC.Add(seperator())
+	topC.Add(lifeSeperator())
 	topC.Add(widget.NewButton("<", func() {
 		POCLifeKeyPress("Left")
 	}))
@@ -213,12 +215,12 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 
 	controller.AddBeforeUpdate(func(f float64) bool {
 		lifeGen.NextGen()
-		LifeResetDot()
+		POCLifeResetDot()
 		gen := lifeGen.currentGenId
 
 		cell := lifeGen.generations[lifeGen.currentGenId]
 		for cell != nil {
-			LifeGetDot(cell.x, cell.y, gen, moverWidget)
+			POCLifeGetDot(cell.x, cell.y, gen, moverWidget)
 			cell = cell.next
 		}
 		timeText.SetText(fmt.Sprintf("Time: %05dms Gen: %05d Cells:%05d", lifeGen.timeMillis, lifeGen.countGen, lifeGen.cellCount[lifeGen.currentGenId]))
@@ -228,14 +230,14 @@ func mainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	return container.NewBorder(topC, botC, nil, nil, moverWidget)
 }
 
-func LifeResetDot() {
+func POCLifeResetDot() {
 	dotsPos = 0
 	for i := 0; i < len(dots); i++ {
 		dots[i].Hide()
 	}
 }
 
-func LifeGetDot(x, y int64, gen LifeGenId, moverWidget *MoverWidget) {
+func POCLifeGetDot(x, y int64, gen LifeGenId, moverWidget *MoverWidget) {
 	if dotsPos >= len(dots) {
 		for i := 0; i < 20; i++ {
 			d := canvas.NewCircle(color.RGBA{0, 0, 255, 255})
@@ -258,19 +260,19 @@ func LifeGetDot(x, y int64, gen LifeGenId, moverWidget *MoverWidget) {
 	dot.Show()
 }
 
-func cellToScreen(cellX, cellY int64) (float32, float32) {
+func lifeCellToScreen(cellX, cellY int64) (float32, float32) {
 	x := ((xOffset + cellX) * gridSize)
 	y := ((yOffset + cellY) * gridSize)
 	return float32(x), float32(y)
 }
 
-func screenToCell(mouseX, mouseY float32) (int64, int64) {
+func lifeScreenToCell(mouseX, mouseY float32) (int64, int64) {
 	cellX := int64((mouseX / float32(gridSize))) - xOffset
 	cellY := int64((mouseY / float32(gridSize))) - yOffset
 	return cellX, cellY
 }
 
-func seperator() *widget.Separator {
+func lifeSeperator() *widget.Separator {
 	sep := widget.NewSeparator()
 	sep.Resize(fyne.Size{Width: 10, Height: sep.MinSize().Height})
 	return sep

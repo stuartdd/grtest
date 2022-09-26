@@ -31,7 +31,8 @@ func POCkeyPressed(key *fyne.KeyEvent) {
 /*
 -------------------------------------------------------------------- main
 */
-func mainPOC(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
+func MainPOC(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
+
 	containerWidget := NewMoverWidget(width, height)
 
 	player = NewMoverImage(100, 100, 40, 40, canvas.NewImageFromResource(Lander_Png))
