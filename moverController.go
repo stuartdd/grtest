@@ -28,14 +28,6 @@ type Movable interface {
 	String() string
 }
 
-type AnimationController struct {
-	fastAnimation *fyne.Animation
-	ft            float32
-	delay         int64
-	tick          func(*MoverController, *AnimationController, float32)
-	running       bool
-}
-
 type MoverController struct {
 	movers         []Movable
 	beforeUpdate   []func(float64) bool
@@ -70,7 +62,7 @@ func (sl *StaticLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 -------------------------------------------------------------------- Controller
 */
 func NewMoverController(width, height float64) *MoverController {
-	c := &MoverController{movers: make([]Movable, 0), beforeUpdate: make([]func(float64) bool, 0), animationDelay: 0}
+	c := &MoverController{movers: make([]Movable, 0), beforeUpdate: make([]func(float64) bool, 0), afterUpdate: make([]func(float64) bool, 0), animationDelay: 0}
 	return c
 }
 
@@ -142,22 +134,24 @@ func (mc *MoverController) IsAnimation() bool {
 func (mc *MoverController) StopAnimation() {
 	if mc.animation != nil {
 		mc.animation.Stop()
-
 	}
 }
+
 func (mc *MoverController) StartAnimation() {
 	if mc.animation != nil {
 		mc.animation.Start()
 	}
 }
 
-func controllerDefaultTick(mc *MoverController, ac *AnimationController, f float32) {
-	mc.Update(float64(f - ac.ft))
-	if f == 1.0 {
-		ac.ft = 0
-	} else {
-		ac.ft = f
-	}
+//
+// Animation control -----------------------------------------------------------------------
+//
+type AnimationController struct {
+	fastAnimation *fyne.Animation
+	ft            float32
+	delay         int64
+	tick          func(*MoverController, *AnimationController, float32)
+	running       bool
 }
 
 func (mc *MoverController) InitAnimationController(delay int64, tick func(*MoverController, *AnimationController, float32)) {
@@ -184,9 +178,17 @@ func (mc *MoverController) InitAnimationController(delay int64, tick func(*Mover
 			}
 		}()
 		ac.running = true
-
 	}
 	mc.animation = ac
+}
+
+func controllerDefaultTick(mc *MoverController, ac *AnimationController, f float32) {
+	mc.Update(float64(f - ac.ft))
+	if f == 1.0 {
+		ac.ft = 0
+	} else {
+		ac.ft = f
+	}
 }
 
 func (ac *AnimationController) Start() {

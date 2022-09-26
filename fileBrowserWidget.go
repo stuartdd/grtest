@@ -158,6 +158,7 @@ func newFileBrowserWidgetRenderer(myWidget *FileBrowserWidget) *fileBrowserWidge
 // The Refresh() method is called if the state of the widget changes or the
 // theme is changed
 func (r *fileBrowserWidgetRenderer) Refresh() {
+	r.widget.Refresh()
 }
 
 // Given the size required by the fyne application move and re-size the
