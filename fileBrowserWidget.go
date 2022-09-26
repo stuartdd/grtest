@@ -1,7 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"image/color"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 )
@@ -27,6 +35,7 @@ type FileBrowserWidget struct {
 	objects           []fyne.CanvasObject
 	minSize           fyne.Size
 	size              fyne.Size
+	path              string
 	onSizeChange      func(fyne.Size, fyne.Size)
 	onMouseEvent      func(float32, float32, FileBrowseMouseEventType)
 	onMouseMask       FileBrowseMouseEventType
@@ -39,7 +48,7 @@ var _ fyne.WidgetRenderer = (*fileBrowserWidgetRenderer)(nil)
 var _ fyne.Widget = (*FileBrowserWidget)(nil)
 
 // Create a Widget and Extend (initialiase) the BaseWidget
-func NewFileBrowserWidget(cx, cy float64) *FileBrowserWidget {
+func NewFileBrowserWidget(cx, cy float64, path string) *FileBrowserWidget {
 	w := &FileBrowserWidget{ // Create this widget with an initial text value
 		objects:     make([]fyne.CanvasObject, 0),
 		minSize:     fyne.Size{Width: float32(cx), Height: float32(cy)},
@@ -47,7 +56,39 @@ func NewFileBrowserWidget(cx, cy float64) *FileBrowserWidget {
 		onMouseMask: FB_ME_NONE,
 	}
 	w.ExtendBaseWidget(w) // Initialiase the BaseWidget
+	w.SetPath(path, "*.rle")
 	return w
+}
+
+func (w *FileBrowserWidget) SetPath(path, pattern string) {
+	w.path = path
+	if w.path == "" {
+		return
+	}
+	vb := container.NewVBox()
+	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			vb.Add(widget.NewLabel(err.Error()))
+			return err
+		}
+		n := info.Name()
+		if !(strings.HasPrefix(n, ".") || strings.HasPrefix(path, ".") || strings.HasPrefix(n, "_") || strings.HasPrefix(path, "_")) {
+			match, err := filepath.Match(pattern, info.Name())
+			if match && err == nil {
+				fmt.Printf("dir: %v: name: %s path: %s\n", info.IsDir(), info.Name(), path)
+				vb.Add(widget.NewLabel(n))
+			}
+		}
+		return nil
+	})
+	w.objects = make([]fyne.CanvasObject, 0)
+	bg := canvas.NewRectangle(color.RGBA{255, 0, 0, 255})
+	bg.Resize(w.size)
+	w.Add(bg)
+	w.Add(vb)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 // Create the renderer. This is called by the fyne application
@@ -157,8 +198,10 @@ func newFileBrowserWidgetRenderer(myWidget *FileBrowserWidget) *fileBrowserWidge
 //
 // The Refresh() method is called if the state of the widget changes or the
 // theme is changed
+// Dont call r.widget.Refresh() it causes a stack overflow
+//
 func (r *fileBrowserWidgetRenderer) Refresh() {
-	r.widget.Refresh()
+
 }
 
 // Given the size required by the fyne application move and re-size the

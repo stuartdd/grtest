@@ -134,6 +134,8 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 
 	moverWidget = NewMoverWidget(width, height)
 	targetDot = canvas.NewCircle(color.RGBA{250, 0, 0, 255})
+	fmWidget := NewFileBrowserWidget(width, height, ".")
+	fmWidget.Hide()
 
 	topC := container.NewHBox()
 	botC := container.NewPadded()
@@ -155,6 +157,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 
 	topC.Add(lifeSeperator())
 	topC.Add(widget.NewButton("File", func() {
+		fmWidget.Show()
 		go runMyFileDialog(mainWindow, "", func(file string, err error) {
 			if err == nil {
 				POCLifeStop()
@@ -165,6 +168,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 				lifeGen.Clear()
 				lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
 			}
+			fmWidget.Hide()
 		})
 	}))
 	topC.Add(widget.NewButton("Restart", func() {
@@ -227,6 +231,8 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		return false
 	})
 	moverWidget.AddTop(targetDot)
+	moverWidget.AddTop(fmWidget)
+
 	return container.NewBorder(topC, botC, nil, nil, moverWidget)
 }
 

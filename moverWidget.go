@@ -166,6 +166,8 @@ func newMoverWidgetRenderer(myWidget *MoverWidget) *moverWidgetRenderer {
 
 // The Refresh() method is called if the state of the widget changes or the
 // theme is changed
+// Dont call r.widget.Refresh() it causes a stack overflow
+//
 func (r *moverWidgetRenderer) Refresh() {
 }
 
