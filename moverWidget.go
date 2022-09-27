@@ -87,7 +87,7 @@ func (w *MoverWidget) SetOnSizeChange(f func(fyne.Size, fyne.Size)) {
 
 func (mc *MoverWidget) SetOnMouseEvent(f func(float32, float32, MoverMouseEventType), mask MoverMouseEventType) {
 	mc.onMouseEvent = f
-	mc.SetOnMouseEventMask(mask)
+	mc.onMouseMask = mask
 }
 
 func (mc *MoverWidget) SetOnMouseEventMask(mask MoverMouseEventType) {
@@ -167,7 +167,6 @@ func newMoverWidgetRenderer(myWidget *MoverWidget) *moverWidgetRenderer {
 // The Refresh() method is called if the state of the widget changes or the
 // theme is changed
 // Dont call r.widget.Refresh() it causes a stack overflow
-//
 func (r *moverWidgetRenderer) Refresh() {
 }
 

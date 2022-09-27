@@ -82,10 +82,11 @@ func (w *FileBrowserWidget) SetPath(path, pattern string) {
 		return nil
 	})
 	w.objects = make([]fyne.CanvasObject, 0)
-	bg := canvas.NewRectangle(color.RGBA{255, 0, 0, 255})
-	bg.Resize(w.size)
+	bg := canvas.NewRectangle(color.RGBA{0, 45, 0, 0})
 	w.Add(bg)
-	w.Add(vb)
+	w.Add(container.NewVScroll(vb))
+	bg.Resize(w.size)
+	w.BaseWidget.Resize(w.size)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -109,11 +110,10 @@ func (w *FileBrowserWidget) SetOnSizeChange(f func(fyne.Size, fyne.Size)) {
 	w.onSizeChange = f
 }
 
-//
 // FileBrowserWidget MOUSE HANDLING ----------------------------------------------------------- MOUSE HANDLING
-//
 func (mc *FileBrowserWidget) SetOnMouseEvent(f func(float32, float32, FileBrowseMouseEventType), mask FileBrowseMouseEventType) {
 	mc.onMouseEvent = f
+	mc.onMouseMask = mask
 }
 
 func (mc *FileBrowserWidget) SetOnMouseEventMask(mask FileBrowseMouseEventType) {
@@ -175,16 +175,13 @@ func (mc *FileBrowserWidget) DoubleTapped(me *fyne.PointEvent) {
 	}
 }
 
-//
 // RENDERER ----------------------------------------------------------------------------------- RENDERER
 //
 // Widget Renderer code starts here
-//
 type fileBrowserWidgetRenderer struct {
 	widget *FileBrowserWidget // Reference to the widget holding the current state
 }
 
-//
 // Create the renderer with a reference to the widget
 // Note: The background and foreground colours are set from the current theme.
 //
@@ -195,11 +192,9 @@ func newFileBrowserWidgetRenderer(myWidget *FileBrowserWidget) *fileBrowserWidge
 	}
 }
 
-//
 // The Refresh() method is called if the state of the widget changes or the
 // theme is changed
 // Dont call r.widget.Refresh() it causes a stack overflow
-//
 func (r *fileBrowserWidgetRenderer) Refresh() {
 
 }

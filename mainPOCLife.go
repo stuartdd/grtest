@@ -157,19 +157,26 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 
 	topC.Add(lifeSeperator())
 	topC.Add(widget.NewButton("File", func() {
-		fmWidget.Show()
-		go runMyFileDialog(mainWindow, "", func(file string, err error) {
-			if err == nil {
-				POCLifeStop()
-				rleFile, err = NewRleFile(file)
-				if err != nil {
-					panic(err)
-				}
-				lifeGen.Clear()
-				lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
-			}
+		if fmWidget.Visible() {
 			fmWidget.Hide()
-		})
+		} else {
+			fmWidget.SetOnMouseEvent(func(f1, f2 float32, fbmet FileBrowseMouseEventType) {
+				fmWidget.Hide()
+			}, FB_ME_TAP)
+			fmWidget.Show()
+		}
+		// go runMyFileDialog(mainWindow, "", func(file string, err error) {
+		// 	if err == nil {
+		// 		POCLifeStop()
+		// 		rleFile, err = NewRleFile(file)
+		// 		if err != nil {
+		// 			panic(err)
+		// 		}
+		// 		lifeGen.Clear()
+		// 		lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
+		// 	}
+		// 	fmWidget.Hide()
+		// })
 	}))
 	topC.Add(widget.NewButton("Restart", func() {
 		POCLifeStop()
