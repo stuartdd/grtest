@@ -2,15 +2,14 @@ package main
 
 import (
 	"fmt"
-	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -27,6 +26,22 @@ const (
 	FB_ME_MOVE FileBrowseMouseEventType = 0b01000000
 )
 
+type FileBrowserEntry struct {
+	text canvas.Text
+	line int
+}
+
+func NewFileDetails(text string, textStyle fyne.TextStyle, textSize float32, line int) *FileBrowserEntry {
+	be := &FileBrowserEntry{text: canvas.Text{Text: text, TextStyle: textStyle, TextSize: textSize}, line: line}
+	si := fyne.MeasureText(be.text.Text, be.text.TextSize, be.text.TextStyle)
+	be.text.Move(fyne.Position{X: 0, Y: float32(line) * si.Height * 1.5})
+	return be
+}
+
+func (be *FileBrowserEntry) Size() fyne.Size {
+	return fyne.MeasureText(be.text.Text, be.text.TextSize, be.text.TextStyle)
+}
+
 // Widget code starts here
 //
 // A text widget with theamed background and foreground
@@ -35,6 +50,8 @@ type FileBrowserWidget struct {
 	objects           []fyne.CanvasObject
 	minSize           fyne.Size
 	size              fyne.Size
+	textStyle         *fyne.TextStyle
+	textSize          float32
 	path              string
 	onSizeChange      func(fyne.Size, fyne.Size)
 	onMouseEvent      func(float32, float32, FileBrowseMouseEventType)
@@ -53,6 +70,8 @@ func NewFileBrowserWidget(cx, cy float64, path string) *FileBrowserWidget {
 		objects:     make([]fyne.CanvasObject, 0),
 		minSize:     fyne.Size{Width: float32(cx), Height: float32(cy)},
 		size:        fyne.Size{Width: float32(cx), Height: float32(cy)},
+		textStyle:   &fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2},
+		textSize:    fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameText),
 		onMouseMask: FB_ME_NONE,
 	}
 	w.ExtendBaseWidget(w) // Initialiase the BaseWidget
@@ -65,10 +84,15 @@ func (w *FileBrowserWidget) SetPath(path, pattern string) {
 	if w.path == "" {
 		return
 	}
-	vb := container.NewVBox()
+	w.objects = make([]fyne.CanvasObject, 0)
+	bg := canvas.NewRectangle(theme.BackgroundColor())
+	bg.Resize(w.size)
+	w.Add(bg)
+
+	line := 0
 	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			vb.Add(widget.NewLabel(err.Error()))
+			w.Add(widget.NewLabel(err.Error()))
 			return err
 		}
 		n := info.Name()
@@ -76,16 +100,13 @@ func (w *FileBrowserWidget) SetPath(path, pattern string) {
 			match, err := filepath.Match(pattern, info.Name())
 			if match && err == nil {
 				fmt.Printf("dir: %v: name: %s path: %s\n", info.IsDir(), info.Name(), path)
-				vb.Add(widget.NewLabel(n))
+				fbe := NewFileDetails(path, *w.textStyle, w.textSize, line)
+				w.Add(&fbe.text)
+				line++
 			}
 		}
 		return nil
 	})
-	w.objects = make([]fyne.CanvasObject, 0)
-	bg := canvas.NewRectangle(color.RGBA{0, 45, 0, 0})
-	w.Add(bg)
-	w.Add(container.NewVScroll(vb))
-	bg.Resize(w.size)
 	w.BaseWidget.Resize(w.size)
 	if err != nil {
 		fmt.Println(err)
