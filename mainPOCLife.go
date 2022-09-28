@@ -24,6 +24,7 @@ var (
 	moverWidget *MoverWidget
 	targetDot   *canvas.Circle
 	rleFile     *RLE
+	rleError    error
 
 	FC_EMPTY = color.RGBA{255, 0, 0, 255}
 	FC_ADDED = color.RGBA{0, 255, 0, 255}
@@ -164,9 +165,24 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 			fmWidget.SetOnMouseEvent(func(x, y float32, fbmet FileBrowseMouseEventType) {
 				l := fmWidget.SelectByMouse(x, y)
 				if l >= 0 {
-					fmWidget.Refresh()
+					switch fbmet {
+					case FB_ME_TAP:
+						fmWidget.Refresh()
+					case FB_ME_DTAP:
+						fmWidget.Hide()
+						fmt.Printf("Selected %s", fmWidget.GetSelected())
+						POCLifeStop()
+						rleFile, rleError = NewRleFile(fmWidget.GetSelected())
+						if rleError != nil {
+							panic(rleError)
+						}
+						lifeGen.Clear()
+						lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
+						POCLifeRunFor(RUN_FOR_EVER)
+						mainWindow.SetTitle(fmWidget.GetSelected())
+					}
 				}
-			}, FB_ME_TAP)
+			}, FB_ME_TAP|FB_ME_DTAP)
 			fmWidget.Show()
 		}
 	}))
@@ -201,11 +217,9 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	}))
 
 	botC.Add(timeText)
-
-	var err error
-	rleFile, err = NewRleFile("testdata/1234_synth.rle")
-	if err != nil {
-		panic(err)
+	rleFile, rleError = NewRleFile("testdata/Infinite_growth.rle")
+	if rleError != nil {
+		panic(rleError)
 	}
 	lifeGen = NewLifeGen(nil, 0)
 	lifeGen.AddCellsAtOffset(10, 10, rleFile.coords, lifeGen.currentGenId)

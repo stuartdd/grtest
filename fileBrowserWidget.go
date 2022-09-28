@@ -65,6 +65,18 @@ func NewFileBrowserWidget(cx, cy float64, path, pattern string) *FileBrowserWidg
 	return w
 }
 
+func (w *FileBrowserWidget) GetSelected() string {
+	for _, o := range w.objects {
+		ow, ok := o.(*FileBrowserWidgetLine)
+		if ok {
+			if ow.selectLineNo >= 0 {
+				return ow.cText.Text
+			}
+		}
+	}
+	return ""
+}
+
 func (w *FileBrowserWidget) SetPath(path, pattern string) {
 	w.path = path
 	if w.path == "" {
@@ -92,6 +104,7 @@ func (w *FileBrowserWidget) SetPath(path, pattern string) {
 		fmt.Println(err)
 	}
 	w.objects = co
+	w.Refresh()
 }
 
 func (mc *FileBrowserWidget) SelectByMouse(x, y float32) int {
