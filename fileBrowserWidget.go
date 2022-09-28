@@ -36,6 +36,7 @@ type FileBrowserWidget struct {
 	textStyle         *fyne.TextStyle
 	textSize          float32
 	path              string
+	pattern           string
 	onMouseEvent      func(float32, float32, FileBrowseMouseEventType)
 	onMouseMask       FileBrowseMouseEventType
 	err               error
@@ -77,14 +78,28 @@ func (w *FileBrowserWidget) GetSelected() string {
 	return ""
 }
 
+func (w *FileBrowserWidget) SetParentPath() {
+	pp, err := PathToParentPath(w.path)
+	if err == nil {
+		w.SetPath(pp, w.pattern)
+	}
+}
+
 func (w *FileBrowserWidget) SetPath(path, pattern string) {
 	w.path = path
+	w.pattern = pattern
 	if w.path == "" {
 		return
 	}
 	line := 0
 	co := make([]fyne.CanvasObject, 0)
-	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+	_, err := PathToParentPath(w.path)
+	if err == nil {
+		fbe := NewFileBrowserWidgetLine("..", *w.textStyle, w.textSize, line, 2)
+		co = append(co, fbe)
+		line++
+	}
+	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			w.err = err
 			return err

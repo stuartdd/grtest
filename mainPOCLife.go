@@ -165,21 +165,26 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 			fmWidget.SetOnMouseEvent(func(x, y float32, fbmet FileBrowseMouseEventType) {
 				l := fmWidget.SelectByMouse(x, y)
 				if l >= 0 {
+					p := fmWidget.GetSelected()
 					switch fbmet {
 					case FB_ME_TAP:
 						fmWidget.Refresh()
 					case FB_ME_DTAP:
-						fmWidget.Hide()
-						fmt.Printf("Selected %s", fmWidget.GetSelected())
-						POCLifeStop()
-						rleFile, rleError = NewRleFile(fmWidget.GetSelected())
-						if rleError != nil {
-							panic(rleError)
+						if p == ".." {
+							fmWidget.SetParentPath()
+						} else {
+							fmWidget.Hide()
+							fmt.Printf("Selected %s", fmWidget.GetSelected())
+							POCLifeStop()
+							rleFile, rleError = NewRleFile(fmWidget.GetSelected())
+							if rleError != nil {
+								panic(rleError)
+							}
+							lifeGen.Clear()
+							lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
+							POCLifeRunFor(RUN_FOR_EVER)
+							mainWindow.SetTitle(fmWidget.GetSelected())
 						}
-						lifeGen.Clear()
-						lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
-						POCLifeRunFor(RUN_FOR_EVER)
-						mainWindow.SetTitle(fmWidget.GetSelected())
 					}
 				}
 			}, FB_ME_TAP|FB_ME_DTAP)

@@ -4,14 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
-
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/storage"
 )
 
 type RLE struct {
@@ -130,70 +126,17 @@ func (rle *RLE) String() string {
 	return sb.String()
 }
 
-type MyFileDialog struct {
-	file string
-	path string
-	wait bool
-	err  error
-}
-
-func runMyFileDialog(parent fyne.Window, path string, callback func(string, error)) *MyFileDialog {
-	dil := &MyFileDialog{wait: true, path: path}
-	if path == "" {
-		dil.GetCurrentPath()
+func PathToParentPath(p string) (string, error) {
+	fd, err := os.Stat(p)
+	if os.IsNotExist(err) {
+		return "", err
 	}
-	fd := dialog.NewFileOpen(func(uc fyne.URIReadCloser, err error) {
-		if uc == nil {
-			dil.err = fmt.Errorf("no file selected")
-			dil.file = ""
-		} else {
-			dil.file = uc.URI().Path()
-			dil.err = err
-		}
-		dil.wait = false
-		if callback != nil {
-			callback(dil.file, dil.err)
-		}
-	}, parent)
-	l, err := dil.GetLastValueAsListableURI()
+	if !fd.IsDir() {
+		return "", fmt.Errorf("path %s is not a dir")
+	}
+	fp, err := filepath.Abs(filepath.Dir(p))
 	if err != nil {
-		dil.err = err
-		return dil
+		return "", err
 	}
-	fd.SetLocation(l)
-	fd.SetFilter(storage.NewExtensionFileFilter([]string{".rle", ".RLE", ".Rle"}))
-	fd.Show()
-	dil.wait = true
-	for dil.wait {
-		time.Sleep(200 * time.Millisecond)
-	}
-	return dil
-}
-
-func (d *MyFileDialog) GetLastValueAsListableURI() (fyne.ListableURI, error) {
-	u, err := storage.ParseURI("file://" + d.path)
-	if err != nil {
-		return nil, err
-	}
-	l, err := storage.ListerForURI(u)
-	if err != nil {
-		return nil, err
-	}
-	return l, nil
-}
-
-func (d *MyFileDialog) GetCurrentPath() {
-	d.path = ""
-	for _, e := range os.Environ() {
-		pair := strings.SplitN(e, "=", 2)
-		if len(pair) == 2 {
-			if pair[0] == "PWD" {
-				d.path = pair[1]
-			} else {
-				if pair[0] == "HOME" && d.path == "" {
-					d.path = pair[1]
-				}
-			}
-		}
-	}
+	return fp, nil
 }
