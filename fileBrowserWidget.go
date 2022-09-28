@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -26,22 +25,6 @@ const (
 	FB_ME_MOVE FileBrowseMouseEventType = 0b01000000
 )
 
-type FileBrowserEntry struct {
-	text canvas.Text
-	line int
-}
-
-func NewFileDetails(text string, textStyle fyne.TextStyle, textSize float32, line int) *FileBrowserEntry {
-	be := &FileBrowserEntry{text: canvas.Text{Text: text, TextStyle: textStyle, TextSize: textSize}, line: line}
-	si := fyne.MeasureText(be.text.Text, be.text.TextSize, be.text.TextStyle)
-	be.text.Move(fyne.Position{X: 0, Y: float32(line) * si.Height * 1.5})
-	return be
-}
-
-func (be *FileBrowserEntry) Size() fyne.Size {
-	return fyne.MeasureText(be.text.Text, be.text.TextSize, be.text.TextStyle)
-}
-
 // Widget code starts here
 //
 // A text widget with theamed background and foreground
@@ -53,9 +36,9 @@ type FileBrowserWidget struct {
 	textStyle         *fyne.TextStyle
 	textSize          float32
 	path              string
-	onSizeChange      func(fyne.Size, fyne.Size)
 	onMouseEvent      func(float32, float32, FileBrowseMouseEventType)
 	onMouseMask       FileBrowseMouseEventType
+	err               error
 }
 
 var _ desktop.Mouseable = (*MoverWidget)(nil)
@@ -63,9 +46,10 @@ var _ fyne.Tappable = (*MoverWidget)(nil)
 var _ fyne.DoubleTappable = (*MoverWidget)(nil)
 var _ fyne.WidgetRenderer = (*fileBrowserWidgetRenderer)(nil)
 var _ fyne.Widget = (*FileBrowserWidget)(nil)
+var _ fyne.CanvasObject = (*FileBrowserWidget)(nil)
 
 // Create a Widget and Extend (initialiase) the BaseWidget
-func NewFileBrowserWidget(cx, cy float64, path string) *FileBrowserWidget {
+func NewFileBrowserWidget(cx, cy float64, path, pattern string) *FileBrowserWidget {
 	w := &FileBrowserWidget{ // Create this widget with an initial text value
 		objects:     make([]fyne.CanvasObject, 0),
 		minSize:     fyne.Size{Width: float32(cx), Height: float32(cy)},
@@ -73,9 +57,11 @@ func NewFileBrowserWidget(cx, cy float64, path string) *FileBrowserWidget {
 		textStyle:   &fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2},
 		textSize:    fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameText),
 		onMouseMask: FB_ME_NONE,
+		err:         nil,
 	}
 	w.ExtendBaseWidget(w) // Initialiase the BaseWidget
-	w.SetPath(path, "*.rle")
+	w.BaseWidget.Resize(w.size)
+	w.SetPath(path, pattern)
 	return w
 }
 
@@ -84,51 +70,50 @@ func (w *FileBrowserWidget) SetPath(path, pattern string) {
 	if w.path == "" {
 		return
 	}
-	w.objects = make([]fyne.CanvasObject, 0)
-	bg := canvas.NewRectangle(theme.BackgroundColor())
-	bg.Resize(w.size)
-	w.Add(bg)
-
 	line := 0
+	co := make([]fyne.CanvasObject, 0)
 	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			w.Add(widget.NewLabel(err.Error()))
+			w.err = err
 			return err
 		}
 		n := info.Name()
 		if !(strings.HasPrefix(n, ".") || strings.HasPrefix(path, ".") || strings.HasPrefix(n, "_") || strings.HasPrefix(path, "_")) {
 			match, err := filepath.Match(pattern, info.Name())
 			if match && err == nil {
-				fmt.Printf("dir: %v: name: %s path: %s\n", info.IsDir(), info.Name(), path)
-				fbe := NewFileDetails(path, *w.textStyle, w.textSize, line)
-				w.Add(&fbe.text)
+				fbe := NewFileBrowserWidgetLine(path, *w.textStyle, w.textSize, line, 2)
+				co = append(co, fbe)
 				line++
 			}
 		}
 		return nil
 	})
-	w.BaseWidget.Resize(w.size)
 	if err != nil {
 		fmt.Println(err)
 	}
+	w.objects = co
+}
+
+func (mc *FileBrowserWidget) SelectByMouse(x, y float32) int {
+	lin := -1
+	for _, o := range mc.objects {
+		fbwl, ok := o.(*FileBrowserWidgetLine)
+		if ok {
+			if fbwl.isInside(x, y) {
+				lin = fbwl.lineNo
+				fbwl.selectLineNo = lin
+			} else {
+				fbwl.selectLineNo = -1
+			}
+		}
+	}
+	return lin
 }
 
 // Create the renderer. This is called by the fyne application
 func (w *FileBrowserWidget) CreateRenderer() fyne.WidgetRenderer {
 	// Pass this widget to the renderer so it can access the text field
 	return newFileBrowserWidgetRenderer(w)
-}
-
-// Add canvas objects to the widget
-func (w *FileBrowserWidget) Add(co fyne.CanvasObject) {
-	if co == nil {
-		return
-	}
-	w.objects = append(w.objects, co)
-}
-
-func (w *FileBrowserWidget) SetOnSizeChange(f func(fyne.Size, fyne.Size)) {
-	w.onSizeChange = f
 }
 
 // FileBrowserWidget MOUSE HANDLING ----------------------------------------------------------- MOUSE HANDLING
@@ -217,16 +202,20 @@ func newFileBrowserWidgetRenderer(myWidget *FileBrowserWidget) *fileBrowserWidge
 // theme is changed
 // Dont call r.widget.Refresh() it causes a stack overflow
 func (r *fileBrowserWidgetRenderer) Refresh() {
-
+	objects := r.widget.objects
+	for _, o := range objects {
+		o.Refresh()
+	}
 }
 
 // Given the size required by the fyne application move and re-size the
 // canvas objects.
 func (r *fileBrowserWidgetRenderer) Layout(s fyne.Size) {
-	if r.widget.onSizeChange != nil && (r.widget.size.Width != s.Width || r.widget.size.Height != s.Height) {
-		r.widget.onSizeChange(r.widget.size, s)
+	objects := r.widget.objects
+	for i, o := range objects {
+		o.Resize(fyne.Size{Width: s.Width, Height: o.Size().Height})
+		o.Move(fyne.Position{X: 0, Y: float32(i) * o.Size().Height})
 	}
-	r.widget.size = s
 }
 
 // Create a minimum size for the widget.

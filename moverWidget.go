@@ -16,6 +16,7 @@ type MoverWidget struct {
 	onSizeChange      func(fyne.Size, fyne.Size)
 	bottomObjects     []fyne.CanvasObject
 	topObjects        []fyne.CanvasObject
+	fileWidget        fyne.Widget
 	onMouseEvent      func(float32, float32, MoverMouseEventType)
 	onMouseMask       MoverMouseEventType
 }
@@ -44,6 +45,7 @@ func NewMoverWidget(cx, cy float64) *MoverWidget {
 	w := &MoverWidget{ // Create this widget with an initial text value
 		bottomObjects: make([]fyne.CanvasObject, 0),
 		topObjects:    make([]fyne.CanvasObject, 0),
+		fileWidget:    nil,
 		minSize:       fyne.Size{Width: float32(cx), Height: float32(cy)},
 		size:          fyne.Size{Width: float32(cx), Height: float32(cy)},
 		onMouseMask:   MM_ME_NONE,
@@ -64,6 +66,10 @@ func (w *MoverWidget) AddBottom(co fyne.CanvasObject) {
 		return
 	}
 	w.bottomObjects = append(w.bottomObjects, co)
+}
+
+func (w *MoverWidget) SetFileBrowserWidget(widget fyne.Widget) {
+	w.fileWidget = widget
 }
 
 // Add canvas objects to the widget
@@ -151,7 +157,7 @@ func (mc *MoverWidget) DoubleTapped(me *fyne.PointEvent) {
 
 // Widget Renderer code starts here
 type moverWidgetRenderer struct {
-	widget *MoverWidget // Reference to the widget holding the current state
+	moverWidget *MoverWidget // Reference to the widget holding the current state
 }
 
 // Create the renderer with a reference to the widget
@@ -160,7 +166,7 @@ type moverWidgetRenderer struct {
 // Do not size or move canvas objects here.
 func newMoverWidgetRenderer(myWidget *MoverWidget) *moverWidgetRenderer {
 	return &moverWidgetRenderer{
-		widget: myWidget,
+		moverWidget: myWidget,
 	}
 }
 
@@ -168,26 +174,38 @@ func newMoverWidgetRenderer(myWidget *MoverWidget) *moverWidgetRenderer {
 // theme is changed
 // Dont call r.widget.Refresh() it causes a stack overflow
 func (r *moverWidgetRenderer) Refresh() {
+	if r.moverWidget.fileWidget != nil {
+		r.moverWidget.fileWidget.Refresh()
+	}
 }
 
 // Given the size required by the fyne application move and re-size the
 // canvas objects.
 func (r *moverWidgetRenderer) Layout(s fyne.Size) {
-	if r.widget.onSizeChange != nil && (r.widget.size.Width != s.Width || r.widget.size.Height != s.Height) {
-		r.widget.onSizeChange(r.widget.size, s)
+	if r.moverWidget.onSizeChange != nil && (r.moverWidget.size.Width != s.Width || r.moverWidget.size.Height != s.Height) {
+		r.moverWidget.onSizeChange(r.moverWidget.size, s)
 	}
-	r.widget.size = s
+	r.moverWidget.size = s
+	if r.moverWidget.fileWidget != nil {
+		r.moverWidget.fileWidget.Resize(s)
+	}
 }
 
 // Create a minimum size for the widget.
 // The smallest size is the size of the text with a border defined by the theme padding
 func (r *moverWidgetRenderer) MinSize() fyne.Size {
-	return r.widget.minSize
+	return r.moverWidget.minSize
 }
 
 // Return a list of each canvas object.
 func (r *moverWidgetRenderer) Objects() []fyne.CanvasObject {
-	return append(r.widget.bottomObjects, r.widget.topObjects...)
+	o := make([]fyne.CanvasObject, 0)
+	o = append(o, moverWidget.bottomObjects...)
+	o = append(o, moverWidget.topObjects...)
+	if r.moverWidget.fileWidget != nil {
+		o = append(o, r.moverWidget.fileWidget)
+	}
+	return o
 }
 
 // Cleanup if resources have been allocated

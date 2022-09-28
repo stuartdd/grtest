@@ -134,7 +134,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 
 	moverWidget = NewMoverWidget(width, height)
 	targetDot = canvas.NewCircle(color.RGBA{250, 0, 0, 255})
-	fmWidget := NewFileBrowserWidget(width, height, ".")
+	fmWidget := NewFileBrowserWidget(width, height, ".", "*.rle")
 	fmWidget.Hide()
 
 	topC := container.NewHBox()
@@ -160,23 +160,15 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		if fmWidget.Visible() {
 			fmWidget.Hide()
 		} else {
-			fmWidget.SetOnMouseEvent(func(f1, f2 float32, fbmet FileBrowseMouseEventType) {
-				fmWidget.Hide()
+			POCLifeStop()
+			fmWidget.SetOnMouseEvent(func(x, y float32, fbmet FileBrowseMouseEventType) {
+				l := fmWidget.SelectByMouse(x, y)
+				if l >= 0 {
+					fmWidget.Refresh()
+				}
 			}, FB_ME_TAP)
 			fmWidget.Show()
 		}
-		// go runMyFileDialog(mainWindow, "", func(file string, err error) {
-		// 	if err == nil {
-		// 		POCLifeStop()
-		// 		rleFile, err = NewRleFile(file)
-		// 		if err != nil {
-		// 			panic(err)
-		// 		}
-		// 		lifeGen.Clear()
-		// 		lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
-		// 	}
-		// 	fmWidget.Hide()
-		// })
 	}))
 	topC.Add(widget.NewButton("Restart", func() {
 		POCLifeStop()
@@ -238,7 +230,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		return false
 	})
 	moverWidget.AddTop(targetDot)
-	moverWidget.AddTop(fmWidget)
+	moverWidget.SetFileBrowserWidget(fmWidget)
 
 	return container.NewBorder(topC, botC, nil, nil, moverWidget)
 }
