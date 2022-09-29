@@ -131,12 +131,12 @@ func PathToParentPath(p string) (string, error) {
 	if os.IsNotExist(err) {
 		return "", err
 	}
-	if !fd.IsDir() {
-		return "", fmt.Errorf("path %s is not a dir")
-	}
-	fp, err := filepath.Abs(filepath.Dir(p))
+	fp, err := filepath.Abs(fd.Name())
 	if err != nil {
 		return "", err
 	}
-	return fp, nil
+	if !fd.IsDir() {
+		return "", fmt.Errorf("path %s is not a dir", fp)
+	}
+	return filepath.Dir(fp), nil
 }

@@ -135,7 +135,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 
 	moverWidget = NewMoverWidget(width, height)
 	targetDot = canvas.NewCircle(color.RGBA{250, 0, 0, 255})
-	fmWidget := NewFileBrowserWidget(width, height, ".", "*.rle")
+	fmWidget := NewFileBrowserWidget(width, height, "*.rle")
 	fmWidget.Hide()
 
 	topC := container.NewHBox()
@@ -162,6 +162,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 			fmWidget.Hide()
 		} else {
 			POCLifeStop()
+			fmWidget.SetPath(".", "*.rle")
 			fmWidget.SetOnMouseEvent(func(x, y float32, fbmet FileBrowseMouseEventType) {
 				l := fmWidget.SelectByMouse(x, y)
 				if l >= 0 {

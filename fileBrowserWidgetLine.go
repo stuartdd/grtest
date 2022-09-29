@@ -30,11 +30,11 @@ var _ fyne.Widget = (*FileBrowserWidgetLine)(nil)
 var _ fyne.CanvasObject = (*FileBrowserWidgetLine)(nil)
 var _ fyne.WidgetRenderer = (*fileBrowserWidgetLineRenderer)(nil)
 
-func NewFileBrowserWidgetLine(text string, textStyle fyne.TextStyle, textSize float32, lineNo int, lineScale float32) *FileBrowserWidgetLine {
+func NewFileBrowserWidgetLine(text string, textStyle fyne.TextStyle, textSize float32, lineNo int, lineScale, width float32) *FileBrowserWidgetLine {
 	t := &canvas.Text{Text: text, TextSize: textSize, TextStyle: textStyle}
 	r := &canvas.Rectangle{StrokeColor: FB_borderColour, FillColor: FB_bgColour, StrokeWidth: 1}
 	me := fyne.MeasureText(t.Text, t.TextSize, t.TextStyle)
-	si := fyne.Size{Width: me.Width, Height: me.Height * lineScale}
+	si := fyne.Size{Width: width, Height: me.Height * lineScale}
 	po := fyne.Position{X: 0, Y: si.Height * float32(lineNo)}
 	r.Resize(si)
 	return &FileBrowserWidgetLine{cText: t, rect: r, lineNo: lineNo, selectLineNo: -1, yOffset: (si.Height - me.Height) / 2, size: si, position: po}

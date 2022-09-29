@@ -35,7 +35,7 @@ type FileBrowserWidget struct {
 	size              fyne.Size
 	textStyle         *fyne.TextStyle
 	textSize          float32
-	path              string
+	currentPath       string
 	pattern           string
 	onMouseEvent      func(float32, float32, FileBrowseMouseEventType)
 	onMouseMask       FileBrowseMouseEventType
@@ -50,7 +50,7 @@ var _ fyne.Widget = (*FileBrowserWidget)(nil)
 var _ fyne.CanvasObject = (*FileBrowserWidget)(nil)
 
 // Create a Widget and Extend (initialiase) the BaseWidget
-func NewFileBrowserWidget(cx, cy float64, path, pattern string) *FileBrowserWidget {
+func NewFileBrowserWidget(cx, cy float64, pattern string) *FileBrowserWidget {
 	w := &FileBrowserWidget{ // Create this widget with an initial text value
 		objects:     make([]fyne.CanvasObject, 0),
 		minSize:     fyne.Size{Width: float32(cx), Height: float32(cy)},
@@ -58,11 +58,12 @@ func NewFileBrowserWidget(cx, cy float64, path, pattern string) *FileBrowserWidg
 		textStyle:   &fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2},
 		textSize:    fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameText),
 		onMouseMask: FB_ME_NONE,
+		currentPath: "",
+		pattern:     "*",
 		err:         nil,
 	}
 	w.ExtendBaseWidget(w) // Initialiase the BaseWidget
 	w.BaseWidget.Resize(w.size)
-	w.SetPath(path, pattern)
 	return w
 }
 
@@ -79,23 +80,21 @@ func (w *FileBrowserWidget) GetSelected() string {
 }
 
 func (w *FileBrowserWidget) SetParentPath() {
-	pp, err := PathToParentPath(w.path)
+	pp, err := PathToParentPath(w.currentPath)
 	if err == nil {
 		w.SetPath(pp, w.pattern)
 	}
 }
 
 func (w *FileBrowserWidget) SetPath(path, pattern string) {
-	w.path = path
-	w.pattern = pattern
-	if w.path == "" {
+	if path == "" {
 		return
 	}
 	line := 0
 	co := make([]fyne.CanvasObject, 0)
-	_, err := PathToParentPath(w.path)
+	_, err := PathToParentPath(path)
 	if err == nil {
-		fbe := NewFileBrowserWidgetLine("..", *w.textStyle, w.textSize, line, 2)
+		fbe := NewFileBrowserWidgetLine("..", *w.textStyle, w.textSize, line, 2, w.size.Width)
 		co = append(co, fbe)
 		line++
 	}
@@ -108,7 +107,7 @@ func (w *FileBrowserWidget) SetPath(path, pattern string) {
 		if !(strings.HasPrefix(n, ".") || strings.HasPrefix(path, ".") || strings.HasPrefix(n, "_") || strings.HasPrefix(path, "_")) {
 			match, err := filepath.Match(pattern, info.Name())
 			if match && err == nil {
-				fbe := NewFileBrowserWidgetLine(path, *w.textStyle, w.textSize, line, 2)
+				fbe := NewFileBrowserWidgetLine(path, *w.textStyle, w.textSize, line, 2, w.size.Width)
 				co = append(co, fbe)
 				line++
 			}
@@ -118,8 +117,9 @@ func (w *FileBrowserWidget) SetPath(path, pattern string) {
 	if err != nil {
 		fmt.Println(err)
 	}
+	w.pattern = pattern
+	w.currentPath = path
 	w.objects = co
-	w.Refresh()
 }
 
 func (mc *FileBrowserWidget) SelectByMouse(x, y float32) int {
