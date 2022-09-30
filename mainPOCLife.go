@@ -166,25 +166,28 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 			fmWidget.SetOnMouseEvent(func(x, y float32, fbmet FileBrowseMouseEventType) {
 				l := fmWidget.SelectByMouse(x, y)
 				if l >= 0 {
-					p := fmWidget.GetSelected()
+					p, selType := fmWidget.GetSelected()
 					switch fbmet {
 					case FB_ME_TAP:
 						fmWidget.Refresh()
 					case FB_ME_DTAP:
-						if p == ".." {
+						switch selType {
+						case FB_PARENT:
 							fmWidget.SetParentPath()
-						} else {
+						case FB_DIR:
+							fmWidget.SetPath(p, fmWidget.pattern)
+						case FB_FILE:
 							fmWidget.Hide()
-							fmt.Printf("Selected %s", fmWidget.GetSelected())
+							fmt.Printf("Selected %s", p)
 							POCLifeStop()
-							rleFile, rleError = NewRleFile(fmWidget.GetSelected())
+							rleFile, rleError = NewRleFile(p)
 							if rleError != nil {
 								panic(rleError)
 							}
 							lifeGen.Clear()
 							lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
 							POCLifeRunFor(RUN_FOR_EVER)
-							mainWindow.SetTitle(fmWidget.GetSelected())
+							mainWindow.SetTitle(p)
 						}
 					}
 				}

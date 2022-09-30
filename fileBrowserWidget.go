@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -66,16 +67,16 @@ func NewFileBrowserWidget(cx, cy float64, pattern string) *FileBrowserWidget {
 	return w
 }
 
-func (w *FileBrowserWidget) GetSelected() string {
+func (w *FileBrowserWidget) GetSelected() (string, FileBrowserLineType) {
 	for _, o := range w.objects {
 		ow, ok := o.(*FileBrowserWidgetLine)
 		if ok {
 			if ow.selectLineNo >= 0 {
-				return ow.cText.Text
+				return path.Join(w.currentPath, ow.cText.Text), ow.lineType
 			}
 		}
 	}
-	return ""
+	return "", FB_ERR
 }
 
 func (w *FileBrowserWidget) SetParentPath() {
@@ -114,13 +115,13 @@ func (w *FileBrowserWidget) SetPath(newPath, pattern string) {
 		n := info.Name()
 		if !(strings.HasPrefix(n, ".") || strings.HasPrefix(n, "_")) {
 			if info.IsDir() {
-				fbe := NewFileBrowserWidgetLine("dir:"+n, FB_DIR, *w.textStyle, w.textSize, line, 2, w.size.Width)
+				fbe := NewFileBrowserWidgetLine(n, FB_DIR, *w.textStyle, w.textSize, line, 2, w.size.Width)
 				co = append(co, fbe)
 				line++
 			} else {
 				match, err := filepath.Match(pattern, info.Name())
 				if match && err == nil {
-					fbe := NewFileBrowserWidgetLine("fil:"+n, FB_FILE, *w.textStyle, w.textSize, line, 2, w.size.Width)
+					fbe := NewFileBrowserWidgetLine(n, FB_FILE, *w.textStyle, w.textSize, line, 2, w.size.Width)
 					co = append(co, fbe)
 					line++
 				}
