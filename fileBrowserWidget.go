@@ -91,24 +91,25 @@ func (w *FileBrowserWidget) SetPath(newPath, pattern string) {
 		return
 	}
 	line := 0
-	co := make([]fyne.CanvasObject, 0)
+	coFile := make([]fyne.CanvasObject, 0)
+	coDir := make([]fyne.CanvasObject, 0)
 	_, err := PathToParentPath(newPath)
 	if err == nil {
-		fbe := NewFileBrowserWidgetLine("..", FB_PARENT, *w.textStyle, w.textSize, line, 2, w.size.Width)
-		co = append(co, fbe)
+		fbe := NewFileBrowserWidgetLine(".. (up to parent directory)", FB_PARENT, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		coDir = append(coDir, fbe)
 		line++
 	}
 	files, err := os.ReadDir(newPath)
 	if err != nil {
 		fbe := NewFileBrowserWidgetLine(err.Error(), FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
-		co = append(co, fbe)
-		w.objects = co
+		coDir = append(coDir, fbe)
+		w.objects = coDir
 		return
 	}
 	if len(files) == 0 {
 		fbe := NewFileBrowserWidgetLine("No Files Found", FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
-		co = append(co, fbe)
-		w.objects = co
+		coDir = append(coDir, fbe)
+		w.objects = coDir
 		return
 	}
 	for _, info := range files {
@@ -116,13 +117,13 @@ func (w *FileBrowserWidget) SetPath(newPath, pattern string) {
 		if !(strings.HasPrefix(n, ".") || strings.HasPrefix(n, "_")) {
 			if info.IsDir() {
 				fbe := NewFileBrowserWidgetLine(n, FB_DIR, *w.textStyle, w.textSize, line, 2, w.size.Width)
-				co = append(co, fbe)
+				coDir = append(coDir, fbe)
 				line++
 			} else {
 				match, err := filepath.Match(pattern, info.Name())
 				if match && err == nil {
 					fbe := NewFileBrowserWidgetLine(n, FB_FILE, *w.textStyle, w.textSize, line, 2, w.size.Width)
-					co = append(co, fbe)
+					coFile = append(coFile, fbe)
 					line++
 				}
 			}
@@ -130,13 +131,13 @@ func (w *FileBrowserWidget) SetPath(newPath, pattern string) {
 	}
 	if len(files) == 0 {
 		fbe := NewFileBrowserWidgetLine("No matching files returned", FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
-		co = append(co, fbe)
-		w.objects = co
+		coDir = append(coDir, fbe)
+		w.objects = coDir
 		return
 	}
 	w.pattern = pattern
 	w.currentPath = newPath
-	w.objects = co
+	w.objects = append(coDir, coFile...)
 }
 
 func (mc *FileBrowserWidget) SelectByMouse(x, y float32) int {
