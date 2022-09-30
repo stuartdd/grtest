@@ -8,6 +8,16 @@ import (
 	"fyne.io/fyne/v2/canvas"
 )
 
+type FileBrowserLineType int
+
+const (
+	FB_PARENT FileBrowserLineType = iota
+	FB_DIR
+	FB_FILE
+	FB_ERR
+	FB_UNSET
+)
+
 var (
 	FB_bgColour       = color.RGBA{0, 45, 0, 0}
 	FB_selectBgColour = color.RGBA{45, 0, 0, 0}
@@ -19,6 +29,7 @@ type FileBrowserWidgetLine struct {
 	visible      bool
 	lineNo       int
 	selectLineNo int
+	lineType     FileBrowserLineType
 	yOffset      float32
 	position     fyne.Position
 	size         fyne.Size
@@ -30,14 +41,14 @@ var _ fyne.Widget = (*FileBrowserWidgetLine)(nil)
 var _ fyne.CanvasObject = (*FileBrowserWidgetLine)(nil)
 var _ fyne.WidgetRenderer = (*fileBrowserWidgetLineRenderer)(nil)
 
-func NewFileBrowserWidgetLine(text string, textStyle fyne.TextStyle, textSize float32, lineNo int, lineScale, width float32) *FileBrowserWidgetLine {
+func NewFileBrowserWidgetLine(text string, lineType FileBrowserLineType, textStyle fyne.TextStyle, textSize float32, lineNo int, lineScale, width float32) *FileBrowserWidgetLine {
 	t := &canvas.Text{Text: text, TextSize: textSize, TextStyle: textStyle}
 	r := &canvas.Rectangle{StrokeColor: FB_borderColour, FillColor: FB_bgColour, StrokeWidth: 1}
 	me := fyne.MeasureText(t.Text, t.TextSize, t.TextStyle)
 	si := fyne.Size{Width: width, Height: me.Height * lineScale}
 	po := fyne.Position{X: 0, Y: si.Height * float32(lineNo)}
 	r.Resize(si)
-	return &FileBrowserWidgetLine{cText: t, rect: r, lineNo: lineNo, selectLineNo: -1, yOffset: (si.Height - me.Height) / 2, size: si, position: po}
+	return &FileBrowserWidgetLine{cText: t, rect: r, lineNo: lineNo, selectLineNo: -1, lineType: lineType, yOffset: (si.Height - me.Height) / 2, size: si, position: po}
 }
 
 func (be *FileBrowserWidgetLine) isInside(x, y float32) bool {
@@ -83,6 +94,7 @@ func (be *FileBrowserWidgetLine) Refresh() {
 		be.rect.FillColor = FB_bgColour
 	}
 	be.rect.Refresh()
+	be.cText.Refresh()
 }
 
 // Size returns the current size of this object.
@@ -118,9 +130,7 @@ func (w *FileBrowserWidgetLine) CreateRenderer() fyne.WidgetRenderer {
 	return newFileBrowserWidgetLineRenderer(w)
 }
 
-//
 // --------------------------------------------------------------------------------- LINE RENDERER
-//
 type fileBrowserWidgetLineRenderer struct {
 	lineWidget *FileBrowserWidgetLine // Reference to the widget holding the current state
 }

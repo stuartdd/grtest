@@ -162,7 +162,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 			fmWidget.Hide()
 		} else {
 			POCLifeStop()
-			fmWidget.SetPath(".", "*.rle")
+			fmWidget.SetPath("/home/stuart/git/golang/grtest/testdata", "*.rle")
 			fmWidget.SetOnMouseEvent(func(x, y float32, fbmet FileBrowseMouseEventType) {
 				l := fmWidget.SelectByMouse(x, y)
 				if l >= 0 {

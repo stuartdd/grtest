@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,39 +85,56 @@ func (w *FileBrowserWidget) SetParentPath() {
 	}
 }
 
-func (w *FileBrowserWidget) SetPath(path, pattern string) {
-	if path == "" {
+func (w *FileBrowserWidget) SetPath(newPath, pattern string) {
+	if newPath == "" {
 		return
 	}
 	line := 0
 	co := make([]fyne.CanvasObject, 0)
-	_, err := PathToParentPath(path)
+	_, err := PathToParentPath(newPath)
 	if err == nil {
-		fbe := NewFileBrowserWidgetLine("..", *w.textStyle, w.textSize, line, 2, w.size.Width)
+		fbe := NewFileBrowserWidgetLine("..", FB_PARENT, *w.textStyle, w.textSize, line, 2, w.size.Width)
 		co = append(co, fbe)
 		line++
 	}
-	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			w.err = err
-			return err
-		}
+	files, err := os.ReadDir(newPath)
+	if err != nil {
+		fbe := NewFileBrowserWidgetLine(err.Error(), FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		co = append(co, fbe)
+		w.objects = co
+		return
+	}
+	if len(files) == 0 {
+		fbe := NewFileBrowserWidgetLine("No Files Found", FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		co = append(co, fbe)
+		w.objects = co
+		return
+	}
+	for _, info := range files {
 		n := info.Name()
-		if !(strings.HasPrefix(n, ".") || strings.HasPrefix(path, ".") || strings.HasPrefix(n, "_") || strings.HasPrefix(path, "_")) {
-			match, err := filepath.Match(pattern, info.Name())
-			if match && err == nil {
-				fbe := NewFileBrowserWidgetLine(path, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		if !(strings.HasPrefix(n, ".") || strings.HasPrefix(n, "_")) {
+			if info.IsDir() {
+				fbe := NewFileBrowserWidgetLine("dir:"+n, FB_DIR, *w.textStyle, w.textSize, line, 2, w.size.Width)
 				co = append(co, fbe)
 				line++
+			} else {
+				match, err := filepath.Match(pattern, info.Name())
+				if match && err == nil {
+					fbe := NewFileBrowserWidgetLine("fil:"+n, FB_FILE, *w.textStyle, w.textSize, line, 2, w.size.Width)
+					co = append(co, fbe)
+					line++
+				}
 			}
 		}
-		return nil
-	})
-	if err != nil {
-		fmt.Println(err)
+	}
+	if len(files) == 0 {
+		fbe := NewFileBrowserWidgetLine("No matching files returned", FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		co = append(co, fbe)
+		w.objects = co
+		return
 	}
 	w.pattern = pattern
-	w.currentPath = path
+	w.currentPath = newPath
 	w.objects = co
 }
 
