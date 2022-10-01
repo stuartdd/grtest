@@ -1,10 +1,9 @@
 package main
 
 import (
+	"io/fs"
 	"os"
 	"path"
-	"path/filepath"
-	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
@@ -36,9 +35,9 @@ type FileBrowserWidget struct {
 	textStyle         *fyne.TextStyle
 	textSize          float32
 	currentPath       string
-	pattern           string
 	onMouseEvent      func(float32, float32, FileBrowseMouseEventType)
-	onMouseMask       FileBrowseMouseEventType
+	mouseEventMask    FileBrowseMouseEventType
+	onFileFoundEvent  func(fs.DirEntry, int, FileBrowserLineType) bool
 	err               error
 }
 
@@ -50,17 +49,16 @@ var _ fyne.Widget = (*FileBrowserWidget)(nil)
 var _ fyne.CanvasObject = (*FileBrowserWidget)(nil)
 
 // Create a Widget and Extend (initialiase) the BaseWidget
-func NewFileBrowserWidget(cx, cy float64, pattern string) *FileBrowserWidget {
+func NewFileBrowserWidget(cx, cy float64) *FileBrowserWidget {
 	w := &FileBrowserWidget{ // Create this widget with an initial text value
-		objects:     make([]fyne.CanvasObject, 0),
-		minSize:     fyne.Size{Width: float32(cx), Height: float32(cy)},
-		size:        fyne.Size{Width: float32(cx), Height: float32(cy)},
-		textStyle:   &fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2},
-		textSize:    fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameText),
-		onMouseMask: FB_ME_NONE,
-		currentPath: "",
-		pattern:     "*",
-		err:         nil,
+		objects:        make([]fyne.CanvasObject, 0),
+		minSize:        fyne.Size{Width: float32(cx), Height: float32(cy)},
+		size:           fyne.Size{Width: float32(cx), Height: float32(cy)},
+		textStyle:      &fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2},
+		textSize:       fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameText),
+		mouseEventMask: FB_ME_NONE,
+		currentPath:    "",
+		err:            nil,
 	}
 	w.ExtendBaseWidget(w) // Initialiase the BaseWidget
 	w.BaseWidget.Resize(w.size)
@@ -82,11 +80,11 @@ func (w *FileBrowserWidget) GetSelected() (string, FileBrowserLineType) {
 func (w *FileBrowserWidget) SetParentPath() {
 	pp, err := PathToParentPath(w.currentPath)
 	if err == nil {
-		w.SetPath(pp, w.pattern)
+		w.SetPath(pp)
 	}
 }
 
-func (w *FileBrowserWidget) SetPath(newPath, pattern string) {
+func (w *FileBrowserWidget) SetPath(newPath string) {
 	if newPath == "" {
 		return
 	}
@@ -114,28 +112,24 @@ func (w *FileBrowserWidget) SetPath(newPath, pattern string) {
 	}
 	for _, info := range files {
 		n := info.Name()
-		if !(strings.HasPrefix(n, ".") || strings.HasPrefix(n, "_")) {
-			if info.IsDir() {
-				fbe := NewFileBrowserWidgetLine(n, FB_DIR, *w.textStyle, w.textSize, line, 2, w.size.Width)
-				coDir = append(coDir, fbe)
-				line++
+		typ := FB_FILE
+		if info.IsDir() {
+			typ = FB_DIR
+		}
+		ok := false
+		if w.onFileFoundEvent != nil {
+			ok = w.onFileFoundEvent(info, line, typ)
+		}
+		if ok {
+			fbe := NewFileBrowserWidgetLine(n, typ, *w.textStyle, w.textSize, line, 2, w.size.Width)
+			if typ == FB_FILE {
+				coFile = append(coFile, fbe)
 			} else {
-				match, err := filepath.Match(pattern, info.Name())
-				if match && err == nil {
-					fbe := NewFileBrowserWidgetLine(n, FB_FILE, *w.textStyle, w.textSize, line, 2, w.size.Width)
-					coFile = append(coFile, fbe)
-					line++
-				}
+				coDir = append(coDir, fbe)
 			}
+			line++
 		}
 	}
-	if len(files) == 0 {
-		fbe := NewFileBrowserWidgetLine("No matching files returned", FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
-		coDir = append(coDir, fbe)
-		w.objects = coDir
-		return
-	}
-	w.pattern = pattern
 	w.currentPath = newPath
 	w.objects = append(coDir, coFile...)
 }
@@ -163,22 +157,26 @@ func (w *FileBrowserWidget) CreateRenderer() fyne.WidgetRenderer {
 }
 
 // FileBrowserWidget MOUSE HANDLING ----------------------------------------------------------- MOUSE HANDLING
+func (mc *FileBrowserWidget) SetOnFileFoundEvent(f func(fs.DirEntry, int, FileBrowserLineType) bool) {
+	mc.onFileFoundEvent = f
+}
+
 func (mc *FileBrowserWidget) SetOnMouseEvent(f func(float32, float32, FileBrowseMouseEventType), mask FileBrowseMouseEventType) {
 	mc.onMouseEvent = f
-	mc.onMouseMask = mask
+	mc.mouseEventMask = mask
 }
 
 func (mc *FileBrowserWidget) SetOnMouseEventMask(mask FileBrowseMouseEventType) {
 	if mask == FB_ME_NONE {
-		mc.onMouseMask = FB_ME_NONE
+		mc.mouseEventMask = FB_ME_NONE
 	} else {
-		mc.onMouseMask = mc.onMouseMask | mask
+		mc.mouseEventMask = mc.mouseEventMask | mask
 	}
 }
 
 // MouseIn is a hook that is called if the mouse pointer enters the element.
 func (mc *FileBrowserWidget) MouseIn(me *desktop.MouseEvent) {
-	if mc.onMouseEvent != nil && (mc.onMouseMask&FB_ME_MIN) != 0 {
+	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_MIN) != 0 {
 		d := me.AbsolutePosition.X - me.Position.X
 		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_MIN)
 	}
@@ -186,7 +184,7 @@ func (mc *FileBrowserWidget) MouseIn(me *desktop.MouseEvent) {
 
 // MouseMoved is a hook that is called if the mouse pointer moved over the element.
 func (mc *FileBrowserWidget) MouseMoved(me *desktop.MouseEvent) {
-	if mc.onMouseEvent != nil && (mc.onMouseMask&FB_ME_MOVE) != 0 {
+	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_MOVE) != 0 {
 		d := me.AbsolutePosition.X - me.Position.X
 		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_MOVE)
 	}
@@ -194,34 +192,34 @@ func (mc *FileBrowserWidget) MouseMoved(me *desktop.MouseEvent) {
 
 // MouseOut is a hook that is called if the mouse pointer leaves the element.
 func (mc *FileBrowserWidget) MouseOut() {
-	if mc.onMouseEvent != nil && (mc.onMouseMask&FB_ME_MOUT) != 0 {
+	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_MOUT) != 0 {
 		mc.onMouseEvent(0, 0, FB_ME_MOUT)
 	}
 }
 
 func (mc *FileBrowserWidget) MouseDown(me *desktop.MouseEvent) {
-	if mc.onMouseEvent != nil && (mc.onMouseMask&FB_ME_DOWN) != 0 {
+	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_DOWN) != 0 {
 		d := me.AbsolutePosition.X - me.Position.X
 		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_DOWN)
 	}
 }
 
 func (mc *FileBrowserWidget) MouseUp(me *desktop.MouseEvent) {
-	if mc.onMouseEvent != nil && (mc.onMouseMask&FB_ME_UP) != 0 {
+	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_UP) != 0 {
 		d := me.AbsolutePosition.X - me.Position.X
 		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_UP)
 	}
 }
 
 func (mc *FileBrowserWidget) Tapped(me *fyne.PointEvent) {
-	if mc.onMouseEvent != nil && (mc.onMouseMask&FB_ME_TAP) != 0 {
+	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_TAP) != 0 {
 		d := me.AbsolutePosition.X - me.Position.X
 		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_TAP)
 	}
 }
 
 func (mc *FileBrowserWidget) DoubleTapped(me *fyne.PointEvent) {
-	if mc.onMouseEvent != nil && (mc.onMouseMask&FB_ME_DTAP) != 0 {
+	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_DTAP) != 0 {
 		d := me.AbsolutePosition.X - me.Position.X
 		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_DTAP)
 	}

@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"io/fs"
+	"os"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -132,12 +135,25 @@ func POCLifeStop() {
 */
 func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
 	controller.SetAnimationDelay(100)
-
+	s, _ := os.Getwd()
+	fmt.Println(s)
 	moverWidget = NewMoverWidget(width, height)
 	targetDot = canvas.NewCircle(color.RGBA{250, 0, 0, 255})
-	fmWidget := NewFileBrowserWidget(width, height, "*.rle")
+	fmWidget := NewFileBrowserWidget(width, height)
 	fmWidget.Hide()
-
+	fmWidget.SetOnFileFoundEvent(func(de fs.DirEntry, line int, typ FileBrowserLineType) bool {
+		name := de.Name()
+		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
+			return false
+		}
+		if typ == FB_DIR {
+			return true
+		}
+		if strings.HasSuffix(strings.ToLower(name), ".rle") {
+			return true
+		}
+		return false
+	})
 	topC := container.NewHBox()
 	botC := container.NewPadded()
 	startButton = widget.NewButton("Start (F1)", func() {
@@ -162,7 +178,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 			fmWidget.Hide()
 		} else {
 			POCLifeStop()
-			fmWidget.SetPath("/home/stuart/git/golang/grtest/testdata", "*.rle")
+			fmWidget.SetPath("/home/stuart/git/golang/grtest/testdata")
 			fmWidget.SetOnMouseEvent(func(x, y float32, fbmet FileBrowseMouseEventType) {
 				l := fmWidget.SelectByMouse(x, y)
 				if l >= 0 {
@@ -175,7 +191,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 						case FB_PARENT:
 							fmWidget.SetParentPath()
 						case FB_DIR:
-							fmWidget.SetPath(p, fmWidget.pattern)
+							fmWidget.SetPath(p)
 						case FB_FILE:
 							fmWidget.Hide()
 							fmt.Printf("Selected %s", p)
