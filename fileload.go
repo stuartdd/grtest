@@ -35,7 +35,9 @@ func NewRleFile(fileName string) (*RLE, error) {
 			rle.name = strings.TrimSpace(line[2:])
 		} else {
 			if strings.HasPrefix(line, "#C") {
-				rle.comment = strings.TrimSpace(line[2:])
+				if rle.comment == "" {
+					rle.comment = strings.TrimSpace(line[2:])
+				}
 			} else {
 				if strings.HasPrefix(line, "#O") {
 					rle.owner = strings.TrimSpace(line[2:])

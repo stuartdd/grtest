@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"io/fs"
 	"os"
+	"path"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -20,6 +21,7 @@ var (
 	gridSize    int64            = 6
 	xOffset     int64            = 10
 	yOffset     int64            = 10
+	currentWd   string
 	stopButton  *widget.Button
 	startButton *widget.Button
 	stepButton  *widget.Button
@@ -135,24 +137,28 @@ func POCLifeStop() {
 */
 func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
 	controller.SetAnimationDelay(100)
-	s, _ := os.Getwd()
-	fmt.Println(s)
+	currentWd, _ = os.Getwd()
 	moverWidget = NewMoverWidget(width, height)
 	targetDot = canvas.NewCircle(color.RGBA{250, 0, 0, 255})
 	fmWidget := NewFileBrowserWidget(width, height)
 	fmWidget.Hide()
-	fmWidget.SetOnFileFoundEvent(func(de fs.DirEntry, line int, typ FileBrowserLineType) bool {
+	fmWidget.SetOnFileFoundEvent(func(de fs.DirEntry, rootPath string, typ FileBrowserLineType) string {
 		name := de.Name()
 		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
-			return false
+			return ""
 		}
 		if typ == FB_DIR {
-			return true
+			return de.Name()
 		}
 		if strings.HasSuffix(strings.ToLower(name), ".rle") {
-			return true
+			rle, e := NewRleFile(path.Join(rootPath, name))
+			if e != nil {
+				return fmt.Sprintf("%s - %s", name, e.Error())
+			} else {
+				return fmt.Sprintf("%s - %s", name, rle.comment)
+			}
 		}
-		return false
+		return ""
 	})
 	topC := container.NewHBox()
 	botC := container.NewPadded()
@@ -178,7 +184,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 			fmWidget.Hide()
 		} else {
 			POCLifeStop()
-			fmWidget.SetPath("/home/stuart/git/golang/grtest/testdata")
+			fmWidget.SetPath(currentWd)
 			fmWidget.SetOnMouseEvent(func(x, y float32, fbmet FileBrowseMouseEventType) {
 				l := fmWidget.SelectByMouse(x, y)
 				if l >= 0 {
@@ -192,9 +198,9 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 							fmWidget.SetParentPath()
 						case FB_DIR:
 							fmWidget.SetPath(p)
+							currentWd = p
 						case FB_FILE:
 							fmWidget.Hide()
-							fmt.Printf("Selected %s", p)
 							POCLifeStop()
 							rleFile, rleError = NewRleFile(p)
 							if rleError != nil {

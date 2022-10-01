@@ -37,7 +37,7 @@ type FileBrowserWidget struct {
 	currentPath       string
 	onMouseEvent      func(float32, float32, FileBrowseMouseEventType)
 	mouseEventMask    FileBrowseMouseEventType
-	onFileFoundEvent  func(fs.DirEntry, int, FileBrowserLineType) bool
+	onFileFoundEvent  func(fs.DirEntry, string, FileBrowserLineType) string
 	err               error
 }
 
@@ -70,7 +70,7 @@ func (w *FileBrowserWidget) GetSelected() (string, FileBrowserLineType) {
 		ow, ok := o.(*FileBrowserWidgetLine)
 		if ok {
 			if ow.selectLineNo >= 0 {
-				return path.Join(w.currentPath, ow.cText.Text), ow.lineType
+				return ow.filePath, ow.lineType
 			}
 		}
 	}
@@ -93,35 +93,34 @@ func (w *FileBrowserWidget) SetPath(newPath string) {
 	coDir := make([]fyne.CanvasObject, 0)
 	_, err := PathToParentPath(newPath)
 	if err == nil {
-		fbe := NewFileBrowserWidgetLine(".. (up to parent directory)", FB_PARENT, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		fbe := NewFileBrowserWidgetLine(".. (up to parent directory)", "..", FB_PARENT, *w.textStyle, w.textSize, line, 2, w.size.Width)
 		coDir = append(coDir, fbe)
 		line++
 	}
 	files, err := os.ReadDir(newPath)
 	if err != nil {
-		fbe := NewFileBrowserWidgetLine(err.Error(), FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		fbe := NewFileBrowserWidgetLine(err.Error(), "", FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
 		coDir = append(coDir, fbe)
 		w.objects = coDir
 		return
 	}
 	if len(files) == 0 {
-		fbe := NewFileBrowserWidgetLine("No Files Found", FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		fbe := NewFileBrowserWidgetLine("No Files Found", "", FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
 		coDir = append(coDir, fbe)
 		w.objects = coDir
 		return
 	}
 	for _, info := range files {
-		n := info.Name()
 		typ := FB_FILE
 		if info.IsDir() {
 			typ = FB_DIR
 		}
-		ok := false
+		n := info.Name()
 		if w.onFileFoundEvent != nil {
-			ok = w.onFileFoundEvent(info, line, typ)
+			n = w.onFileFoundEvent(info, newPath, typ)
 		}
-		if ok {
-			fbe := NewFileBrowserWidgetLine(n, typ, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		if n != "" {
+			fbe := NewFileBrowserWidgetLine(n, path.Join(newPath, info.Name()), typ, *w.textStyle, w.textSize, line, 2, w.size.Width)
 			if typ == FB_FILE {
 				coFile = append(coFile, fbe)
 			} else {
@@ -157,7 +156,7 @@ func (w *FileBrowserWidget) CreateRenderer() fyne.WidgetRenderer {
 }
 
 // FileBrowserWidget MOUSE HANDLING ----------------------------------------------------------- MOUSE HANDLING
-func (mc *FileBrowserWidget) SetOnFileFoundEvent(f func(fs.DirEntry, int, FileBrowserLineType) bool) {
+func (mc *FileBrowserWidget) SetOnFileFoundEvent(f func(fs.DirEntry, string, FileBrowserLineType) string) {
 	mc.onFileFoundEvent = f
 }
 
