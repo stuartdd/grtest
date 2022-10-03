@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -17,11 +18,14 @@ type RLE struct {
 	name     string
 	owner    string
 	comment  string
+	minX     int64
+	minY     int64
+	maxX     int64
+	maxY     int64
 }
 
 func NewRleFile(fileName string) (*RLE, error) {
 	rle := &RLE{fileName: fileName}
-
 	file, err := os.Open(rle.fileName)
 	if err != nil {
 		return nil, err
@@ -53,14 +57,47 @@ func NewRleFile(fileName string) (*RLE, error) {
 		}
 	}
 	rle.decoded, rle.coords = rle.rleDecodeString(sb.String())
+	if len(rle.coords) == 0 {
+		rle.minX = 0
+		rle.minY = 0
+		rle.maxX = 0
+		rle.maxY = 0
+	} else {
+		rle.minX = math.MaxInt64
+		rle.minY = math.MaxInt64
+		rle.maxX = math.MinInt64
+		rle.maxY = math.MinInt64
+	}
+	for i := 0; i < len(rle.coords); i = i + 2 {
+		if rle.coords[i] < rle.minX {
+			rle.minX = rle.coords[i]
+		}
+		if rle.coords[i] > rle.maxX {
+			rle.maxX = rle.coords[i]
+		}
+		if rle.coords[i+1] < rle.minY {
+			rle.minY = rle.coords[i+1]
+		}
+		if rle.coords[i+1] > rle.maxY {
+			rle.maxY = rle.coords[i+1]
+		}
+	}
 	if scanner.Err() != nil {
 		return nil, scanner.Err()
 	}
 	return rle, nil
 }
 
+func (rle *RLE) RleCenter() (int64, int64) {
+	if len(rle.coords) == 0 {
+		return 0, 0
+	}
+	return (rle.maxX - rle.minX) / 2, (rle.maxY - rle.minY) / 2
+}
+
 func (rle *RLE) rleDecodeString(rleStr string) (string, []int64) {
 	var result strings.Builder
+	coords := make([]int64, 0)
 	for len(rleStr) > 0 {
 		letterIndex := strings.IndexFunc(rleStr, func(r rune) bool { return !unicode.IsDigit(r) })
 		multiply := 1
@@ -73,7 +110,6 @@ func (rle *RLE) rleDecodeString(rleStr string) (string, []int64) {
 	out := result.String()
 
 	var sb strings.Builder
-	coords := make([]int64, 0)
 	count := 0
 	width := 0
 	var y int64 = 0

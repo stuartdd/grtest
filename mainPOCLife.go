@@ -27,6 +27,8 @@ var (
 	stepButton  *widget.Button
 	timeText    = widget.NewLabel("")
 	moverWidget *MoverWidget
+	fbWidget    *FileBrowserWidget
+	lifeWindow  fyne.Window
 	targetDot   *canvas.Circle
 	rleFile     *RLE
 	rleError    error
@@ -50,6 +52,8 @@ func POCLifeMouseEvent(x, y float32, et MoverMouseEventType) {
 			targetDot.FillColor = FC_EMPTY
 		}
 		targetDot.Show()
+	case MM_ME_DTAP:
+		POCLifeFile(cellX, cellY, false)
 	case MM_ME_MOVE:
 		posX, posY := lifeCellToScreen(cellX, cellY)
 		targetDot.Position1 = fyne.Position{X: posX, Y: posY}
@@ -120,9 +124,55 @@ func POCLifeRunFor(n int) {
 	stopButton.Enable()
 }
 
+func POCLifeFileZero() {
+	POCLifeFile(xOffset, yOffset, true)
+}
+
+func POCLifeFile(cellPosX, cellPosY int64, clearCells bool) {
+	if fbWidget.Visible() {
+		fbWidget.Hide()
+	} else {
+		POCLifeStop()
+		fbWidget.SetPath(currentWd)
+		fbWidget.SetOnMouseEvent(func(x, y float32, fbmet FileBrowseMouseEventType) {
+			l := fbWidget.SelectByMouse(x, y)
+			if l >= 0 {
+				p, selType := fbWidget.GetSelected()
+				switch fbmet {
+				case FB_ME_TAP:
+					fbWidget.Refresh()
+				case FB_ME_DTAP:
+					switch selType {
+					case FB_PARENT:
+						fbWidget.SetParentPath()
+					case FB_DIR:
+						fbWidget.SetPath(p)
+						currentWd = p
+					case FB_FILE:
+						fbWidget.Hide()
+						POCLifeStop()
+						rleFile, rleError = NewRleFile(p)
+						if rleError != nil {
+							panic(rleError)
+						}
+						if clearCells {
+							lifeGen.Clear()
+						}
+						ofsx, ofsy := rleFile.RleCenter()
+						lifeGen.AddCellsAtOffset(cellPosX-ofsx, cellPosY-ofsy, rleFile.coords, lifeGen.currentGenId)
+						POCLifeRunFor(RUN_FOR_EVER)
+						lifeWindow.SetTitle(p)
+					}
+				}
+			}
+		}, FB_ME_TAP|FB_ME_DTAP)
+		fbWidget.Show()
+	}
+}
+
 func POCLifeStop() {
 	lifeGen.SetRunFor(0, nil)
-	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_MOVE|MM_ME_DOWN|MM_ME_UP|MM_ME_TAP)
+	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_MOVE|MM_ME_DOWN|MM_ME_UP|MM_ME_TAP|MM_ME_DTAP)
 	if mainController.animation != nil {
 		mainController.animation.delay = 200
 	}
@@ -136,13 +186,14 @@ func POCLifeStop() {
 -------------------------------------------------------------------- main
 */
 func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
+	lifeWindow = mainWindow
 	controller.SetAnimationDelay(100)
 	currentWd, _ = os.Getwd()
 	moverWidget = NewMoverWidget(width, height)
 	targetDot = canvas.NewCircle(color.RGBA{250, 0, 0, 255})
-	fmWidget := NewFileBrowserWidget(width, height)
-	fmWidget.Hide()
-	fmWidget.SetOnFileFoundEvent(func(de fs.DirEntry, rootPath string, typ FileBrowserLineType) string {
+	fbWidget = NewFileBrowserWidget(width, height)
+	fbWidget.Hide()
+	fbWidget.SetOnFileFoundEvent(func(de fs.DirEntry, rootPath string, typ FileBrowserLineType) string {
 		name := de.Name()
 		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
 			return ""
@@ -153,9 +204,9 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		if strings.HasSuffix(strings.ToLower(name), ".rle") {
 			rle, e := NewRleFile(path.Join(rootPath, name))
 			if e != nil {
-				return fmt.Sprintf("%s - %s", name, e.Error())
+				return fmt.Sprintf("%s | %s", name, e.Error())
 			} else {
-				return fmt.Sprintf("%s - %s", name, rle.comment)
+				return fmt.Sprintf("%s | %s", name, rle.comment)
 			}
 		}
 		return ""
@@ -179,44 +230,8 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	}))
 
 	topC.Add(lifeSeperator())
-	topC.Add(widget.NewButton("File", func() {
-		if fmWidget.Visible() {
-			fmWidget.Hide()
-		} else {
-			POCLifeStop()
-			fmWidget.SetPath(currentWd)
-			fmWidget.SetOnMouseEvent(func(x, y float32, fbmet FileBrowseMouseEventType) {
-				l := fmWidget.SelectByMouse(x, y)
-				if l >= 0 {
-					p, selType := fmWidget.GetSelected()
-					switch fbmet {
-					case FB_ME_TAP:
-						fmWidget.Refresh()
-					case FB_ME_DTAP:
-						switch selType {
-						case FB_PARENT:
-							fmWidget.SetParentPath()
-						case FB_DIR:
-							fmWidget.SetPath(p)
-							currentWd = p
-						case FB_FILE:
-							fmWidget.Hide()
-							POCLifeStop()
-							rleFile, rleError = NewRleFile(p)
-							if rleError != nil {
-								panic(rleError)
-							}
-							lifeGen.Clear()
-							lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
-							POCLifeRunFor(RUN_FOR_EVER)
-							mainWindow.SetTitle(p)
-						}
-					}
-				}
-			}, FB_ME_TAP|FB_ME_DTAP)
-			fmWidget.Show()
-		}
-	}))
+	topC.Add(widget.NewButton("File", POCLifeFileZero))
+	topC.Add(widget.NewButton("Clear", POCLifeFileZero))
 	topC.Add(widget.NewButton("Restart", func() {
 		POCLifeStop()
 		lifeGen.Clear()
@@ -275,7 +290,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		return false
 	})
 	moverWidget.AddTop(targetDot)
-	moverWidget.SetFileBrowserWidget(fmWidget)
+	moverWidget.SetFileBrowserWidget(fbWidget)
 
 	return container.NewBorder(topC, botC, nil, nil, moverWidget)
 }
