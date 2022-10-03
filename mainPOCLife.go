@@ -53,6 +53,10 @@ func POCLifeMouseEvent(x, y float32, et MoverMouseEventType) {
 		}
 		targetDot.Show()
 	case MM_ME_DTAP:
+		if lifeGen.IsRunning() {
+			POCLifeStop()
+			return
+		}
 		POCLifeFile(cellX, cellY, false)
 	case MM_ME_MOVE:
 		posX, posY := lifeCellToScreen(cellX, cellY)
@@ -114,7 +118,7 @@ func POCLifeRunFor(n int) {
 	lifeGen.SetRunFor(n, func(lg *LifeGen) {
 		POCLifeStop()
 	})
-	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_NONE)
+	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_DTAP)
 	if mainController.animation != nil {
 		mainController.animation.delay = 100
 	}
@@ -231,7 +235,6 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 
 	topC.Add(lifeSeperator())
 	topC.Add(widget.NewButton("File", POCLifeFileZero))
-	topC.Add(widget.NewButton("Clear", POCLifeFileZero))
 	topC.Add(widget.NewButton("Restart", func() {
 		POCLifeStop()
 		lifeGen.Clear()

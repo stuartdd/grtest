@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
 
 	"fyne.io/fyne/v2"
@@ -80,6 +79,8 @@ func (be *FileBrowserWidgetLine) Move(p fyne.Position) {
 // This should only be called if your object is not in a container with a layout manager.
 func (be *FileBrowserWidgetLine) Resize(s fyne.Size) {
 	be.size = s
+	be.cText.Move(fyne.Position{X: 10, Y: be.yOffset})
+	be.rect.Resize(fyne.Size{Width: s.Width, Height: be.size.Height})
 }
 
 // Position returns the current position of the object relative to its parent.
@@ -150,14 +151,11 @@ func newFileBrowserWidgetLineRenderer(w *FileBrowserWidgetLine) *fileBrowserWidg
 // theme is changed
 // Dont call r.widget.Refresh() it causes a stack overflow
 func (r *fileBrowserWidgetLineRenderer) Refresh() {
-	fmt.Printf("fileBrowserWidgetLineRenderer.Refresh")
 }
 
 // Given the size required by the fyne application move and re-size the
 // canvas objects.
 func (r *fileBrowserWidgetLineRenderer) Layout(s fyne.Size) {
-	r.lineWidget.cText.Move(fyne.Position{X: 10, Y: r.lineWidget.yOffset})
-	r.lineWidget.rect.Resize(fyne.Size{Width: s.Width, Height: r.lineWidget.size.Height})
 }
 
 // Create a minimum size for the widget.
