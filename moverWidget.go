@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
@@ -17,22 +19,87 @@ type MoverWidget struct {
 	bottomObjects     []fyne.CanvasObject
 	topObjects        []fyne.CanvasObject
 	fileWidget        fyne.Widget
-	onMouseEvent      func(float32, float32, MoverMouseEventType)
+	onMouseEvent      func(*MoverWidgetMouseEvent)
 	onMouseMask       MoverMouseEventType
+	mouseDown         bool
+	mouseDownX        int64
+	mouseDownY        int64
+	mouseDragX        int64
+	mouseDragY        int64
 }
 
 type MoverMouseEventType int
 
 const (
-	MM_ME_NONE MoverMouseEventType = 0b00000000
-	MM_ME_DOWN MoverMouseEventType = 0b00000001
-	MM_ME_UP   MoverMouseEventType = 0b00000010
-	MM_ME_TAP  MoverMouseEventType = 0b00000100
-	MM_ME_DTAP MoverMouseEventType = 0b00001000
-	MM_ME_MIN  MoverMouseEventType = 0b00010000
-	MM_ME_MOUT MoverMouseEventType = 0b00100000
-	MM_ME_MOVE MoverMouseEventType = 0b01000000
+	MM_ME_NONE MoverMouseEventType = 0b0000000000000000
+	MM_ME_DOWN MoverMouseEventType = 0b0000000000000001
+	MM_ME_UP   MoverMouseEventType = 0b0000000000000010
+	MM_ME_TAP  MoverMouseEventType = 0b0000000000000100
+	MM_ME_DTAP MoverMouseEventType = 0b0000000000001000
+	MM_ME_MIN  MoverMouseEventType = 0b0000000000010000
+	MM_ME_MOUT MoverMouseEventType = 0b0000000000100000
+	MM_ME_MOVE MoverMouseEventType = 0b0000000001000000
+	MM_ME_DRAG MoverMouseEventType = 0b0000000010000000
 )
+
+type MoverWidgetMouseEvent struct {
+	X1       int64
+	Y1       int64
+	X2       int64
+	Y2       int64
+	Event    MoverMouseEventType
+	Button   int
+	Dragging bool
+}
+
+func NewMoverWidgetMouseEvent(me *desktop.MouseEvent, et MoverMouseEventType) *MoverWidgetMouseEvent {
+	mwme := NewMoverWidgetMouseEventZero(et)
+	mwme.Button = int(me.Button)
+	d := me.AbsolutePosition.X - me.Position.X
+	mwme.X1 = int64(me.Position.X - d)
+	mwme.Y1 = int64(me.Position.Y - d)
+	return mwme
+}
+
+func NewMoverWidgetPointEvent(me *fyne.PointEvent, et MoverMouseEventType) *MoverWidgetMouseEvent {
+	mwme := NewMoverWidgetMouseEventZero(et)
+	d := me.AbsolutePosition.X - me.Position.X
+	mwme.X1 = int64(me.Position.X - d)
+	mwme.Y1 = int64(me.Position.Y - d)
+	return mwme
+}
+
+func NewMoverWidgetMouseEventZero(et MoverMouseEventType) *MoverWidgetMouseEvent {
+	return &MoverWidgetMouseEvent{X1: 0, Y1: 0, X2: 0, Y2: 0, Button: 0, Event: et}
+}
+
+func (me *MoverWidgetMouseEvent) String() string {
+	return fmt.Sprintf("Pos:%f Size:%f Dragging %t", me.Position(), me.Size(), me.Dragging)
+}
+
+func (me *MoverWidgetMouseEvent) Position() *fyne.Position {
+	x := me.X1
+	if me.X2 < x {
+		x = me.X2
+	}
+	y := me.Y1
+	if me.Y2 < y {
+		y = me.Y2
+	}
+	return &fyne.Position{X: float32(x), Y: float32(y)}
+}
+
+func (me *MoverWidgetMouseEvent) Size() *fyne.Size {
+	w := me.X2 - me.X1
+	if w < 0 {
+		w = w * -1
+	}
+	h := me.Y2 - me.Y1
+	if h < 0 {
+		h = h * -1
+	}
+	return &fyne.Size{Width: float32(w), Height: float32(h)}
+}
 
 var _ desktop.Mouseable = (*MoverWidget)(nil)
 var _ fyne.Tappable = (*MoverWidget)(nil)
@@ -91,7 +158,7 @@ func (w *MoverWidget) SetOnSizeChange(f func(fyne.Size, fyne.Size)) {
 	w.onSizeChange = f
 }
 
-func (mc *MoverWidget) SetOnMouseEvent(f func(float32, float32, MoverMouseEventType), mask MoverMouseEventType) {
+func (mc *MoverWidget) SetOnMouseEvent(f func(me *MoverWidgetMouseEvent), mask MoverMouseEventType) {
 	mc.onMouseEvent = f
 	mc.onMouseMask = mask
 }
@@ -107,51 +174,72 @@ func (mc *MoverWidget) SetOnMouseEventMask(mask MoverMouseEventType) {
 // MouseIn is a hook that is called if the mouse pointer enters the element.
 func (mc *MoverWidget) MouseIn(me *desktop.MouseEvent) {
 	if mc.onMouseEvent != nil && (mc.onMouseMask&MM_ME_MIN) != 0 {
-		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, MM_ME_MIN)
+		mc.onMouseEvent(NewMoverWidgetMouseEvent(me, MM_ME_MIN))
 	}
 }
 
 // MouseMoved is a hook that is called if the mouse pointer moved over the element.
 func (mc *MoverWidget) MouseMoved(me *desktop.MouseEvent) {
 	if mc.onMouseEvent != nil && (mc.onMouseMask&MM_ME_MOVE) != 0 {
-		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, MM_ME_MOVE)
+		mwme := NewMoverWidgetMouseEvent(me, MM_ME_MOVE)
+		mwme.Dragging = mc.mouseDown
+		if mc.mouseDown {
+			mc.mouseDragX = mwme.X1
+			mc.mouseDragY = mwme.Y1
+			mwme.X2 = mc.mouseDragX
+			mwme.Y2 = mc.mouseDragY
+			mwme.X1 = mc.mouseDownX
+			mwme.Y1 = mc.mouseDownY
+		}
+		mc.onMouseEvent(mwme)
 	}
 }
 
 // MouseOut is a hook that is called if the mouse pointer leaves the element.
 func (mc *MoverWidget) MouseOut() {
 	if mc.onMouseEvent != nil && (mc.onMouseMask&MM_ME_MOUT) != 0 {
-		mc.onMouseEvent(0, 0, MM_ME_MOUT)
+		mc.onMouseEvent(NewMoverWidgetMouseEventZero(MM_ME_MOUT))
 	}
 }
 
 func (mc *MoverWidget) MouseDown(me *desktop.MouseEvent) {
 	if mc.onMouseEvent != nil && (mc.onMouseMask&MM_ME_DOWN) != 0 {
-		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, MM_ME_DOWN)
+		mwme := NewMoverWidgetMouseEvent(me, MM_ME_DOWN)
+		mc.mouseDownX = mwme.X1
+		mc.mouseDownY = mwme.Y1
+		mc.mouseDragX = mwme.X1
+		mc.mouseDragY = mwme.Y1
+		mc.mouseDown = true
+		mc.onMouseEvent(mwme)
 	}
 }
 
 func (mc *MoverWidget) MouseUp(me *desktop.MouseEvent) {
 	if mc.onMouseEvent != nil && (mc.onMouseMask&MM_ME_UP) != 0 {
-		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, MM_ME_UP)
+		mwme := NewMoverWidgetMouseEvent(me, MM_ME_UP)
+		if mc.mouseDown {
+			if (mc.mouseDownX != mc.mouseDragX) || (mc.mouseDownY != mc.mouseDragY) {
+				mwme.X1 = mc.mouseDownX
+				mwme.Y1 = mc.mouseDownY
+				mwme.X2 = mc.mouseDragX
+				mwme.Y2 = mc.mouseDragY
+				mwme.Event = MM_ME_DRAG
+			} else {
+				mwme.Event = MM_ME_TAP
+			}
+		}
+		mc.mouseDown = false
+		mc.onMouseEvent(mwme)
 	}
 }
 
+// Tapped is dealt with at mouse up. This prevents a tap when ending a mouse drag
 func (mc *MoverWidget) Tapped(me *fyne.PointEvent) {
-	if mc.onMouseEvent != nil && (mc.onMouseMask&MM_ME_TAP) != 0 {
-		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, MM_ME_TAP)
-	}
 }
 
 func (mc *MoverWidget) DoubleTapped(me *fyne.PointEvent) {
 	if mc.onMouseEvent != nil && (mc.onMouseMask&MM_ME_DTAP) != 0 {
-		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, MM_ME_DTAP)
+		mc.onMouseEvent(NewMoverWidgetPointEvent(me, MM_ME_DTAP))
 	}
 }
 

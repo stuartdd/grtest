@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -30,25 +31,30 @@ var (
 	fbWidget    *FileBrowserWidget
 	lifeWindow  fyne.Window
 	targetDot   *canvas.Circle
+	targetRect  *canvas.Rectangle
 	rleFile     *RLE
 	rleError    error
 
-	FC_EMPTY = color.RGBA{255, 0, 0, 255}
-	FC_ADDED = color.RGBA{0, 255, 0, 255}
-	FC_FULL  = color.RGBA{0, 0, 255, 255}
-	FC_CELL  = color.RGBA{0, 255, 255, 255}
+	FC_EMPTY  = color.RGBA{255, 0, 0, 255}   // Cell selector over an empty cell
+	FC_ADDED  = color.RGBA{0, 255, 0, 255}   // Cell just added
+	FC_FULL   = color.RGBA{0, 0, 255, 255}   // Cell selector over a cell
+	FC_SELECT = color.RGBA{255, 255, 0, 255} // Cell colour inside selection rectangle
+	FC_CELL   = color.RGBA{0, 255, 255, 255} // Normal, running cell colour
+
+	COLOURS = []color.Color{FC_CELL, FC_SELECT, FC_FULL, FC_EMPTY} // Cell colour indexed by first two bits og the cell mode value
 )
 
-func POCLifeMouseEvent(x, y float32, et MoverMouseEventType) {
-	cellX, cellY := lifeScreenToCell(x, y)
-	switch et {
+func POCLifeMouseEvent(me *MoverWidgetMouseEvent) {
+	cellX1, cellY1 := lifeScreenToCell(float32(me.X1), float32(me.Y1))
+	// cellX2, cellY2 := lifeScreenToCell(float32(me.X2), float32(me.Y2))
+	switch me.Event {
 	case MM_ME_TAP:
-		c := lifeGen.GetCellFast(cellX, cellY)
+		c := lifeGen.GetCellFast(cellX1, cellY1)
 		if c == 0 {
-			lifeGen.AddCell(cellX, cellY, lifeGen.currentGenId)
+			lifeGen.AddCell(cellX1, cellY1, 0, lifeGen.currentGenId)
 			targetDot.FillColor = FC_ADDED
 		} else {
-			lifeGen.RemoveCell(cellX, cellY, lifeGen.currentGenId)
+			lifeGen.RemoveCell(cellX1, cellY1, lifeGen.currentGenId)
 			targetDot.FillColor = FC_EMPTY
 		}
 		targetDot.Show()
@@ -57,20 +63,38 @@ func POCLifeMouseEvent(x, y float32, et MoverMouseEventType) {
 			POCLifeStop()
 			return
 		}
-		POCLifeFile(cellX, cellY, false)
-	case MM_ME_MOVE:
-		posX, posY := lifeCellToScreen(cellX, cellY)
-		targetDot.Position1 = fyne.Position{X: posX, Y: posY}
-		targetDot.Position2 = fyne.Position{X: posX + float32(gridSize), Y: posY + float32(gridSize)}
-		targetDot.Resize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
-		c := lifeGen.GetCellFast(cellX, cellY)
-		if c == 0 {
-			targetDot.FillColor = FC_EMPTY
-		} else {
-			targetDot.FillColor = FC_FULL
+		POCLifeFile(cellX1, cellY1, false)
+	case MM_ME_DRAG:
+		targetRect.Move(*me.Position())
+		targetRect.Resize(*me.Size())
+		targetRect.Show()
+		if me.Button == int(desktop.MouseButtonPrimary) {
+			lifeGen.ClearMode(0b0)
 		}
-		targetDot.Show()
-
+		x1, y1 := lifeScreenToCell(float32(me.X1), float32(me.Y1))
+		x2, y2 := lifeScreenToCell(float32(me.X2), float32(me.Y2))
+		lifeGen.CellsInBounds(x1, y1, x2, y2, func(lc *LifeCell) {
+			lc.mode = lc.mode | 0x01
+		})
+	case MM_ME_MOVE:
+		if me.Dragging {
+			targetRect.Move(*me.Position())
+			targetRect.Resize(*me.Size())
+			targetRect.Show()
+		} else {
+			posX, posY := lifeCellToScreen(cellX1, cellY1)
+			targetDot.Position1 = fyne.Position{X: posX, Y: posY}
+			targetDot.Position2 = fyne.Position{X: posX + float32(gridSize), Y: posY + float32(gridSize)}
+			targetDot.Resize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
+			c := lifeGen.GetCellFast(cellX1, cellY1)
+			if c == 0 {
+				targetDot.FillColor = FC_EMPTY
+			} else {
+				targetDot.FillColor = FC_FULL
+			}
+			targetDot.Show()
+			targetRect.Hide()
+		}
 	}
 }
 
@@ -123,6 +147,7 @@ func POCLifeRunFor(n int) {
 		mainController.animation.delay = 100
 	}
 	targetDot.Hide()
+	targetRect.Hide()
 	stepButton.Disable()
 	startButton.Disable()
 	stopButton.Enable()
@@ -163,7 +188,7 @@ func POCLifeFile(cellPosX, cellPosY int64, clearCells bool) {
 							lifeGen.Clear()
 						}
 						ofsx, ofsy := rleFile.RleCenter()
-						lifeGen.AddCellsAtOffset(cellPosX-ofsx, cellPosY-ofsy, rleFile.coords, lifeGen.currentGenId)
+						lifeGen.AddCellsAtOffset(cellPosX-ofsx, cellPosY-ofsy, 0, rleFile.coords, lifeGen.currentGenId)
 						POCLifeRunFor(RUN_FOR_EVER)
 						lifeWindow.SetTitle(p)
 					}
@@ -195,6 +220,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	currentWd, _ = os.Getwd()
 	moverWidget = NewMoverWidget(width, height)
 	targetDot = canvas.NewCircle(color.RGBA{250, 0, 0, 255})
+	targetRect = &canvas.Rectangle{StrokeColor: color.RGBA{250, 0, 0, 255}, StrokeWidth: 1}
 	fbWidget = NewFileBrowserWidget(width, height)
 	fbWidget.Hide()
 	fbWidget.SetOnFileFoundEvent(func(de fs.DirEntry, rootPath string, typ FileBrowserLineType) string {
@@ -232,13 +258,12 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	topC.Add(widget.NewButton("Close (Esc)", func() {
 		mainWindow.Close()
 	}))
-
 	topC.Add(lifeSeperator())
 	topC.Add(widget.NewButton("File", POCLifeFileZero))
 	topC.Add(widget.NewButton("Restart", func() {
 		POCLifeStop()
 		lifeGen.Clear()
-		lifeGen.AddCellsAtOffset(xOffset, yOffset, rleFile.coords, lifeGen.currentGenId)
+		lifeGen.AddCellsAtOffset(xOffset, yOffset, 0, rleFile.coords, lifeGen.currentGenId)
 	}))
 	topC.Add(lifeSeperator())
 	topC.Add(startButton)
@@ -271,7 +296,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		panic(rleError)
 	}
 	lifeGen = NewLifeGen(nil, 0)
-	lifeGen.AddCellsAtOffset(10, 10, rleFile.coords, lifeGen.currentGenId)
+	lifeGen.AddCellsAtOffset(10, 10, 0, rleFile.coords, lifeGen.currentGenId)
 	POCLifeRunFor(RUN_FOR_EVER)
 	mainWindow.SetTitle(fmt.Sprintf("File:%s", rleFile.fileName))
 
@@ -286,13 +311,14 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 
 		cell := lifeGen.generations[lifeGen.currentGenId]
 		for cell != nil {
-			POCLifeGetDot(cell.x, cell.y, gen, moverWidget)
+			POCLifeGetDot(cell.x, cell.y, cell.mode, gen, moverWidget)
 			cell = cell.next
 		}
 		timeText.SetText(fmt.Sprintf("Time: %05dms Gen: %05d Cells:%05d", lifeGen.timeMillis, lifeGen.countGen, lifeGen.cellCount[lifeGen.currentGenId]))
 		return false
 	})
 	moverWidget.AddTop(targetDot)
+	moverWidget.AddTop(targetRect)
 	moverWidget.SetFileBrowserWidget(fbWidget)
 
 	return container.NewBorder(topC, botC, nil, nil, moverWidget)
@@ -305,7 +331,7 @@ func POCLifeResetDot() {
 	}
 }
 
-func POCLifeGetDot(x, y int64, gen LifeGenId, moverWidget *MoverWidget) {
+func POCLifeGetDot(x, y int64, mode int, gen LifeGenId, moverWidget *MoverWidget) {
 	if dotsPos >= len(dots) {
 		for i := 0; i < 20; i++ {
 			d := canvas.NewCircle(color.RGBA{0, 0, 255, 255})
@@ -323,7 +349,7 @@ func POCLifeGetDot(x, y int64, gen LifeGenId, moverWidget *MoverWidget) {
 	posY := float32((yOffset + y) * gridSize)
 	dot.Position1 = fyne.Position{X: posX, Y: posY}
 	dot.Position2 = fyne.Position{X: posX + float32(gridSize), Y: posY + float32(gridSize)}
-	dot.FillColor = FC_CELL
+	dot.FillColor = COLOURS[mode&0x03]
 	dot.Resize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
 	dot.Show()
 }
