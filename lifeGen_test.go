@@ -7,6 +7,48 @@ import (
 	"time"
 )
 
+func TestLifeRemoveCells(t *testing.T) {
+	rle, err := NewRleFile("testdata/ibeacon.rle")
+	if err != nil {
+		t.Errorf("RLE File load failed. %e", err)
+	}
+	if len(rle.coords) != 36 {
+		t.Errorf("ibeacon: Expected len(coords):%d actual len(coords):%d", 36, len(rle.coords))
+	}
+	lg := NewLifeGen(func(l *LifeGen) {
+		fmt.Println(l)
+	}, RUN_FOR_EVER)
+	lg.AddCellsAtOffset(0, 0, 0b01, rle.coords, LIFE_GEN_1)
+	lg.RemoveCells(0b01, LIFE_GEN_1)
+
+}
+func TestLifeVisitAllCells(t *testing.T) {
+	rle, err := NewRleFile("testdata/ibeacon.rle")
+	if err != nil {
+		t.Errorf("TestLifeVisitAllCells: RLE File load failed. %e", err)
+	}
+	if len(rle.coords) != 36 {
+		t.Errorf("TestLifeVisitAllCells: Expected len(coords):%d actual len(coords):%d", 36, len(rle.coords))
+	}
+	lg := NewLifeGen(func(l *LifeGen) {
+		fmt.Println(l)
+	}, RUN_FOR_EVER)
+	count := 0
+	lg.VisitAllCells(func(lc *LifeCell) {
+		count++
+	})
+	if count != 0 { // No cells added.
+		t.Errorf("TestLifeVisitAllCells: Expected %d visits actual visits %d", 0, count)
+	}
+	lg.AddCellsAtOffset(0, 0, 0b01, rle.coords, LIFE_GEN_1)
+	lg.VisitAllCells(func(lc *LifeCell) {
+		count++
+	})
+	if count != 18 { // 36 coords 18 cell.
+		t.Errorf("TestLifeVisitAllCells: Expected %d visits actual visits %d", 18, count)
+	}
+}
+
 //    -2,-1, 0, 1, 2, 3, 4 X
 // -2  .  .  .  .  .  .  .
 // -1  .  y  y  y  y  y  .
@@ -110,7 +152,7 @@ func TestLifeRLE(t *testing.T) {
 	assertStr(t, "$rats", rle.name)
 	assertStr(t, "David Buckingham", rle.owner)
 	assertStr(t, "testdata/rats.rle", rle.fileName)
-	assertStr(t, "www.conwaylife.com/wiki/index.php?title=$rats", rle.comment)
+	assertStr(t, "A period 6 oscillator found in 1972.", rle.comment)
 	if len(rle.decoded) != 286 {
 		t.Errorf("TestRle: Expected len(decoded):%d actual len(decoded):%d", 64, len(rle.decoded))
 	}

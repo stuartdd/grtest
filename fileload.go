@@ -165,6 +165,10 @@ func (rle *RLE) String() string {
 }
 
 func PathToParentPath(p string) (string, error) {
+	p, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
 	fd, err := os.Stat(p)
 	if os.IsNotExist(err) {
 		return "", err
@@ -173,12 +177,5 @@ func PathToParentPath(p string) (string, error) {
 		return "", fmt.Errorf("path %s is not a dir", p)
 	}
 	fpp := filepath.Dir(p)
-	fd, err = os.Stat(fpp)
-	if os.IsNotExist(err) {
-		return "", err
-	}
-	if !fd.IsDir() {
-		return "", fmt.Errorf("path %s is not a dir", p)
-	}
 	return fpp, nil
 }

@@ -29,6 +29,10 @@ type LifeCell struct {
 	next *LifeCell
 }
 
+func (lc *LifeCell) Clone() *LifeCell {
+	return &LifeCell{x: lc.x, y: lc.y, ind: lc.ind, mode: lc.mode, next: nil}
+}
+
 type LifeDeadCells struct {
 	root  *LifeCell
 	count int
@@ -51,28 +55,6 @@ const (
 	LIFE_GEN_1 LifeGenId = 0
 	LIFE_GEN_2 LifeGenId = 1
 )
-
-// Add a cell position to the dead cell list.
-// Dont add duplicates
-// Order is NOT important.
-func (ldc *LifeDeadCells) addDeadCell(x, y int64) {
-	t := ldc.root
-	if t == nil {
-		ldc.root = &LifeCell{x: x, y: y, next: nil, ind: x*indexMult + y, mode: 0}
-		ldc.count = 1
-		return
-	}
-	l := t
-	for t != nil {
-		if t.x == x && t.y == y {
-			return
-		}
-		l = t
-		t = t.next
-	}
-	l.next = &LifeCell{x: x, y: y, next: t, ind: x*indexMult + y, mode: 0}
-	ldc.count++
-}
 
 func NewLifeGen(genDone func(*LifeGen), runFor int) *LifeGen {
 	lg := &LifeGen{generations: make([]*LifeCell, 2), cellIndex: make([]*LifeCell, 2), cellCount: make([]int, 2), onGenDone: genDone, onGenStopped: nil}
@@ -385,6 +367,28 @@ func (lg *LifeGen) GetBounds() (int64, int64, int64, int64) {
 	return minx, miny, maxx, maxy
 }
 
+// Add a cell position to the dead cell list.
+// Dont add duplicates
+// Order is NOT important.
+func (ldc *LifeDeadCells) addDeadCell(x, y int64) {
+	t := ldc.root
+	if t == nil {
+		ldc.root = &LifeCell{x: x, y: y, next: nil, ind: x*indexMult + y, mode: 0}
+		ldc.count = 1
+		return
+	}
+	l := t
+	for t != nil {
+		if t.x == x && t.y == y {
+			return
+		}
+		l = t
+		t = t.next
+	}
+	l.next = &LifeCell{x: x, y: y, next: t, ind: x*indexMult + y, mode: 0}
+	ldc.count++
+}
+
 // Add a list of cells to a specific generation.
 // The cells can be added at a specific offset to allow new cells to be added in different places.
 func (lg *LifeGen) AddCellsAtOffset(x, y int64, mode int, c []int64, gen LifeGenId) int {
@@ -394,6 +398,33 @@ func (lg *LifeGen) AddCellsAtOffset(x, y int64, mode int, c []int64, gen LifeGen
 	}
 	lg.cellCount[gen] = lg.cellCount[gen] + n
 	return n
+}
+
+func (lg *LifeGen) RemoveCells(mask int) {
+	var root *LifeCell = nil
+	var prev *LifeCell = nil
+	lg.VisitAllCells(func(lc *LifeCell) {
+		if (lc.mode & mask) != mask { // If mask not matched then Keep the cell
+			if root == nil {
+				root = lc.Clone()
+				prev = root
+			} else {
+				prev.next = lc.Clone()
+				prev = prev.next
+			}
+		}
+	})
+	lg.generations[lg.currentGenId] = root
+}
+
+func (lg *LifeGen) VisitAllCells(callback func(*LifeCell)) {
+	cell := lg.generations[lg.currentGenId]
+	for cell != nil {
+		if callback != nil {
+			callback(cell)
+		}
+		cell = cell.next
+	}
 }
 
 // Remove a single cell.

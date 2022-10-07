@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -91,8 +92,9 @@ func (w *FileBrowserWidget) SetPath(newPath string) {
 	line := 0
 	coFile := make([]fyne.CanvasObject, 0)
 	coDir := make([]fyne.CanvasObject, 0)
-	_, err := PathToParentPath(newPath)
-	if err == nil {
+	par, err := PathToParentPath(newPath)
+	fmt.Printf("Current %s Parent %s\n", newPath, par)
+	if err == nil && newPath != "/" {
 		fbe := NewFileBrowserWidgetLine(".. (up to parent directory)", "..", FB_PARENT, *w.textStyle, w.textSize, line, 2, w.size.Width)
 		coDir = append(coDir, fbe)
 		line++
