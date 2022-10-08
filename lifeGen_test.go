@@ -19,8 +19,56 @@ func TestLifeRemoveCells(t *testing.T) {
 		fmt.Println(l)
 	}, RUN_FOR_EVER)
 	lg.AddCellsAtOffset(0, 0, 0b01, rle.coords, LIFE_GEN_1)
-	lg.RemoveCells(0b01, LIFE_GEN_1)
+	n := lg.CountCells()
+	if n != 18 {
+		t.Errorf("ibeacon: Expected count:%d actual count:%d", 18, n)
+	}
+	lg.RemoveCells(0b01)
+	n = lg.CountCells()
+	if n != 0 {
+		t.Errorf("ibeacon:Remove All Expected count:%d actual count:%d", 0, n)
+	}
+	lg.AddCellsAtOffset(0, 0, 0b01, rle.coords, LIFE_GEN_1)
+	count := 0
+	lg.VisitAllCells(func(lc *LifeCell) bool {
+		if lc.x == 3 {
+			lc.mode = 0
+			count++
+		}
+		return true
+	})
 
+	lg.RemoveCells(0b01)
+	n = lg.CountCells()
+	if n != count {
+		t.Errorf("ibeacon: Remove all except x=3 Expected count:%d actual count:%d", count, n)
+	}
+
+	lg.AddCellsAtOffset(0, 0, 0b01, rle.coords, LIFE_GEN_1)
+	lg.VisitAllCells(func(lc *LifeCell) bool {
+		fmt.Printf("%d ", lc.mode)
+		return true
+	})
+	fmt.Println("  Y")
+	count = 3
+	lg.VisitAllCells(func(lc *LifeCell) bool {
+		if count > 0 {
+			lc.mode = 0
+			count--
+		} else {
+			return false
+		}
+		return true
+	})
+	lg.VisitAllCells(func(lc *LifeCell) bool {
+		fmt.Printf("%d ", lc.mode)
+		return true
+	})
+	lg.RemoveCells(0b01)
+	n = lg.CountCells()
+	if n != 3 {
+		t.Errorf("ibeacon: Remove all except first 3 Expected count:%d actual count:%d", 3, n)
+	}
 }
 func TestLifeVisitAllCells(t *testing.T) {
 	rle, err := NewRleFile("testdata/ibeacon.rle")
@@ -34,15 +82,18 @@ func TestLifeVisitAllCells(t *testing.T) {
 		fmt.Println(l)
 	}, RUN_FOR_EVER)
 	count := 0
-	lg.VisitAllCells(func(lc *LifeCell) {
+	lg.VisitAllCells(func(lc *LifeCell) bool {
 		count++
+		return true
 	})
 	if count != 0 { // No cells added.
 		t.Errorf("TestLifeVisitAllCells: Expected %d visits actual visits %d", 0, count)
 	}
+	count = 0
 	lg.AddCellsAtOffset(0, 0, 0b01, rle.coords, LIFE_GEN_1)
-	lg.VisitAllCells(func(lc *LifeCell) {
+	lg.VisitAllCells(func(lc *LifeCell) bool {
 		count++
+		return true
 	})
 	if count != 18 { // 36 coords 18 cell.
 		t.Errorf("TestLifeVisitAllCells: Expected %d visits actual visits %d", 18, count)

@@ -403,8 +403,9 @@ func (lg *LifeGen) AddCellsAtOffset(x, y int64, mode int, c []int64, gen LifeGen
 func (lg *LifeGen) RemoveCells(mask int) {
 	var root *LifeCell = nil
 	var prev *LifeCell = nil
-	lg.VisitAllCells(func(lc *LifeCell) {
-		if (lc.mode & mask) != mask { // If mask not matched then Keep the cell
+
+	lg.VisitAllCells(func(lc *LifeCell) bool {
+		if (lc.mode & mask) == 0 { // If mask not matched then Keep the cell
 			if root == nil {
 				root = lc.Clone()
 				prev = root
@@ -413,18 +414,33 @@ func (lg *LifeGen) RemoveCells(mask int) {
 				prev = prev.next
 			}
 		}
+		return true
 	})
 	lg.generations[lg.currentGenId] = root
 }
 
-func (lg *LifeGen) VisitAllCells(callback func(*LifeCell)) {
+func (lg *LifeGen) CountCells() int {
+	count := 0
 	cell := lg.generations[lg.currentGenId]
 	for cell != nil {
-		if callback != nil {
-			callback(cell)
+		count++
+		cell = cell.next
+	}
+	return count
+}
+
+func (lg *LifeGen) VisitAllCells(callback func(*LifeCell) bool) bool {
+	if callback == nil {
+		return false
+	}
+	cell := lg.generations[lg.currentGenId]
+	for cell != nil {
+		if !callback(cell) {
+			return false
 		}
 		cell = cell.next
 	}
+	return true
 }
 
 // Remove a single cell.
