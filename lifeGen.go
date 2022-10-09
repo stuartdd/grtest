@@ -107,11 +107,10 @@ func (lg *LifeGen) Reset() {
 }
 
 func (lg *LifeGen) ClearMode(mode int) {
-	cell := lg.GetRootCell()
-	for cell != nil {
-		cell.mode = mode
-		cell = cell.next
-	}
+	lg.VisitAllCells(func(lc *LifeCell) bool {
+		lc.mode = mode
+		return true
+	})
 }
 
 // Get the current generations root cell
@@ -120,6 +119,9 @@ func (lg *LifeGen) GetRootCell() *LifeCell {
 }
 
 func (lg *LifeGen) CellsInBounds(X1, Y1, X2, Y2 int64, found func(*LifeCell)) {
+	if found == nil {
+		return
+	}
 	cell := lg.GetRootCell()
 	for cell != nil {
 		if cell.x >= X1 && cell.x <= X2 && cell.y >= Y1 && cell.y <= Y2 {
@@ -391,6 +393,18 @@ func (lg *LifeGen) AddCellsAtOffset(x, y int64, mode int, c []int64) int {
 	return n
 }
 
+func (lg *LifeGen) ListCellsWithMode(mask int) []int64 {
+	resp := make([]int64, 0)
+	lg.VisitAllCells(func(lc *LifeCell) bool {
+		if (lc.mode & mask) == mask { // If mask not matched then Keep the cell
+			resp = append(resp, lc.x)
+			resp = append(resp, lc.y)
+		}
+		return true
+	})
+	return resp
+}
+
 func (lg *LifeGen) RemoveCellsWithMode(mask int) {
 	var root *LifeCell = nil
 	var prev *LifeCell = nil
@@ -414,6 +428,18 @@ func (lg *LifeGen) CountCells() int {
 	cell := lg.GetRootCell()
 	for cell != nil {
 		count++
+		cell = cell.next
+	}
+	return count
+}
+
+func (lg *LifeGen) CountCellsWithMode(mode int) int {
+	count := 0
+	cell := lg.GetRootCell()
+	for cell != nil {
+		if (cell.mode & mode) == mode {
+			count++
+		}
 		cell = cell.next
 	}
 	return count

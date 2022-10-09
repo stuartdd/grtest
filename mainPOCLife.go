@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"io/fs"
+	"math"
 	"os"
 	"path"
 	"strings"
@@ -15,25 +16,35 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+const (
+	SELECT_MODE_MASK = 0b00000001
+	COLOUR_MODE_MASK = 0b00000011
+)
+
 var (
-	lifeGen     *LifeGen
-	dots        []*canvas.Circle = make([]*canvas.Circle, 0)
-	dotsPos     int              = 0
-	gridSize    int64            = 6
-	xOffset     int64            = 10
-	yOffset     int64            = 10
-	currentWd   string
-	stopButton  *widget.Button
-	startButton *widget.Button
-	stepButton  *widget.Button
-	timeText    = widget.NewLabel("")
-	moverWidget *MoverWidget
-	fbWidget    *FileBrowserWidget
-	lifeWindow  fyne.Window
-	targetDot   *canvas.Circle
-	targetRect  *canvas.Rectangle
-	rleFile     *RLE
-	rleError    error
+	lifeGen         *LifeGen
+	lifeGenStopped  bool
+	selectedCellsXY []int64
+
+	dots         []*canvas.Circle = make([]*canvas.Circle, 0)
+	dotsPos      int              = 0
+	gridSize     int64            = 6
+	xOffset      int64            = 10
+	yOffset      int64            = 10
+	currentWd    string
+	stopButton   *widget.Button
+	startButton  *widget.Button
+	stepButton   *widget.Button
+	deleteButton *widget.Button
+	clearButton  *widget.Button
+	timeText     = widget.NewLabel("")
+	moverWidget  *MoverWidget
+	fbWidget     *FileBrowserWidget
+	lifeWindow   fyne.Window
+	targetDot    *canvas.Circle
+	targetRect   *canvas.Rectangle
+	rleFile      *RLE
+	rleError     error
 
 	FC_EMPTY  = color.RGBA{255, 0, 0, 255}   // Cell selector over an empty cell
 	FC_ADDED  = color.RGBA{0, 255, 0, 255}   // Cell just added
@@ -50,12 +61,18 @@ func POCLifeMouseEvent(me *MoverWidgetMouseEvent) {
 	switch me.Event {
 	case MM_ME_TAP:
 		c := lifeGen.GetCell(cellX1, cellY1)
-		if c == 0 {
-			lifeGen.AddCell(cellX1, cellY1, 0)
-			targetDot.FillColor = FC_ADDED
+		if me.Button == int(desktop.MouseButtonPrimary) {
+			if c == 0 {
+				lifeGen.AddCell(cellX1, cellY1, 0)
+				targetDot.FillColor = FC_ADDED
+			} else {
+				lifeGen.RemoveCell(cellX1, cellY1)
+				targetDot.FillColor = FC_EMPTY
+			}
 		} else {
-			lifeGen.RemoveCell(cellX1, cellY1)
-			targetDot.FillColor = FC_EMPTY
+			if len(selectedCellsXY) > 0 {
+				lifeGen.AddCellsAtOffset(cellX1, cellY1, 0, selectedCellsXY)
+			}
 		}
 		targetDot.Show()
 	case MM_ME_DTAP:
@@ -74,8 +91,12 @@ func POCLifeMouseEvent(me *MoverWidgetMouseEvent) {
 		x1, y1 := lifeScreenToCell(float32(me.X1), float32(me.Y1))
 		x2, y2 := lifeScreenToCell(float32(me.X2), float32(me.Y2))
 		lifeGen.CellsInBounds(x1, y1, x2, y2, func(lc *LifeCell) {
-			lc.mode = lc.mode | 0x01
+			lc.mode = lc.mode | SELECT_MODE_MASK
 		})
+		tmp := lifeGen.ListCellsWithMode(SELECT_MODE_MASK)
+		if len(tmp) > 0 {
+			selectedCellsXY = POCNormaliseCoords(tmp)
+		}
 	case MM_ME_MOVE:
 		if me.Dragging {
 			targetRect.Move(*me.Position())
@@ -138,10 +159,25 @@ func POCLifeSetGridSize(inc bool) {
 	targetDot.Resize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
 }
 
+func POCLifeStop() {
+	lifeGen.SetRunFor(0, nil)
+	lifeGenStopped = true
+	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_MOVE|MM_ME_DOWN|MM_ME_UP|MM_ME_TAP|MM_ME_DTAP)
+	if mainController.animation != nil {
+		mainController.animation.delay = 200
+	}
+	targetDot.Show()
+	stepButton.Enable()
+	clearButton.Enable()
+	startButton.Enable()
+	stopButton.Disable()
+}
+
 func POCLifeRunFor(n int) {
 	lifeGen.SetRunFor(n, func(lg *LifeGen) {
 		POCLifeStop()
 	})
+	lifeGenStopped = false
 	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_DTAP)
 	if mainController.animation != nil {
 		mainController.animation.delay = 100
@@ -149,8 +185,10 @@ func POCLifeRunFor(n int) {
 	targetDot.Hide()
 	targetRect.Hide()
 	stepButton.Disable()
+	clearButton.Disable()
 	startButton.Disable()
 	stopButton.Enable()
+	deleteButton.Hide()
 }
 
 func POCLifeFileZero() {
@@ -199,18 +237,6 @@ func POCLifeFile(cellPosX, cellPosY int64, clearCells bool) {
 	}
 }
 
-func POCLifeStop() {
-	lifeGen.SetRunFor(0, nil)
-	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_MOVE|MM_ME_DOWN|MM_ME_UP|MM_ME_TAP|MM_ME_DTAP)
-	if mainController.animation != nil {
-		mainController.animation.delay = 200
-	}
-	targetDot.Show()
-	stepButton.Enable()
-	startButton.Enable()
-	stopButton.Disable()
-}
-
 /*
 -------------------------------------------------------------------- main
 */
@@ -252,8 +278,19 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	stopButton = widget.NewButton("Stop (F1)", func() {
 		POCLifeStop()
 	})
+	clearButton = widget.NewButton("Clear", func() {
+		lifeGen.Reset()
+	})
+
+	deleteButton = widget.NewButton("Delete", func() {
+		if len(selectedCellsXY) > 0 {
+			lifeGen.RemoveCellsWithMode(SELECT_MODE_MASK)
+		}
+	})
+	deleteButton.Hide()
 	stepButton.Disable()
 	startButton.Disable()
+	clearButton.Disable()
 
 	topC.Add(widget.NewButton("Close (Esc)", func() {
 		mainWindow.Close()
@@ -269,6 +306,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	topC.Add(startButton)
 	topC.Add(stopButton)
 	topC.Add(stepButton)
+	topC.Add(clearButton)
 	topC.Add(lifeSeperator())
 	topC.Add(widget.NewButton("-", func() {
 		POCLifeKeyPress("-")
@@ -289,6 +327,8 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	topC.Add(widget.NewButton(">", func() {
 		POCLifeKeyPress("Right")
 	}))
+	topC.Add(lifeSeperator())
+	topC.Add(deleteButton)
 
 	botC.Add(timeText)
 	rleFile, rleError = NewRleFile("testdata/Infinite_growth.rle")
@@ -305,6 +345,17 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	})
 
 	controller.AddBeforeUpdate(func(f float64) bool {
+		if lifeGenStopped {
+			if lifeGen.CountCellsWithMode(SELECT_MODE_MASK) > 0 {
+				if !deleteButton.Visible() {
+					deleteButton.Show()
+				}
+			} else {
+				if deleteButton.Visible() {
+					deleteButton.Hide()
+				}
+			}
+		}
 		lifeGen.NextGen()
 		POCLifeResetDot()
 		cell := lifeGen.GetRootCell()
@@ -320,6 +371,25 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	moverWidget.SetFileBrowserWidget(fbWidget)
 
 	return container.NewBorder(topC, botC, nil, nil, moverWidget)
+}
+
+func POCNormaliseCoords(in []int64) []int64 {
+	out := make([]int64, len(in))
+	minx := int64(math.MaxInt64)
+	miny := int64(math.MaxInt64)
+	for i := 0; i < len(in); i = i + 2 {
+		if in[i] < minx {
+			minx = in[i]
+		}
+		if in[i+1] < miny {
+			miny = in[i+1]
+		}
+	}
+	for i := 0; i < len(in); i = i + 2 {
+		out[i] = in[i] - minx
+		out[i+1] = in[i+1] - miny
+	}
+	return out
 }
 
 func POCLifeResetDot() {
@@ -347,7 +417,7 @@ func POCLifeGetDot(x, y int64, mode int, moverWidget *MoverWidget) {
 	posY := float32((yOffset + y) * gridSize)
 	dot.Position1 = fyne.Position{X: posX, Y: posY}
 	dot.Position2 = fyne.Position{X: posX + float32(gridSize), Y: posY + float32(gridSize)}
-	dot.FillColor = COLOURS[mode&0x03]
+	dot.FillColor = COLOURS[mode&COLOUR_MODE_MASK]
 	dot.Resize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
 	dot.Show()
 }

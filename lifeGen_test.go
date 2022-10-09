@@ -23,13 +23,13 @@ func TestLifeRemoveCells(t *testing.T) {
 	if n != 18 {
 		t.Errorf("ibeacon: Expected count:%d actual count:%d", 18, n)
 	}
-	lg.RemoveCellsWithMode(0b01)
+	lg.RemoveCellsWithMode(SELECT_MODE_MASK)
 	n = lg.CountCells()
 	if n != 0 {
 		t.Errorf("ibeacon:Remove All Expected count:%d actual count:%d", 0, n)
 	}
 	lg.Reset()
-	lg.AddCellsAtOffset(0, 0, 0b01, rle.coords)
+	lg.AddCellsAtOffset(0, 0, SELECT_MODE_MASK, rle.coords)
 	count := 0
 	lg.VisitAllCells(func(lc *LifeCell) bool {
 		if lc.x == 3 {
@@ -38,13 +38,13 @@ func TestLifeRemoveCells(t *testing.T) {
 		}
 		return true
 	})
-	lg.RemoveCellsWithMode(0b01)
+	lg.RemoveCellsWithMode(SELECT_MODE_MASK)
 	n = lg.CountCells()
 	if n != count {
 		t.Errorf("ibeacon: Remove all except x=3 Expected count:%d actual count:%d", count, n)
 	}
 	lg.Reset()
-	lg.AddCellsAtOffset(0, 0, 0b01, rle.coords)
+	lg.AddCellsAtOffset(0, 0, SELECT_MODE_MASK, rle.coords)
 	count = 3
 	lg.VisitAllCells(func(lc *LifeCell) bool {
 		if count > 0 {
@@ -55,7 +55,7 @@ func TestLifeRemoveCells(t *testing.T) {
 		}
 		return true
 	})
-	lg.RemoveCellsWithMode(0b01)
+	lg.RemoveCellsWithMode(SELECT_MODE_MASK)
 	n = lg.CountCells()
 	if n != 3 {
 		t.Errorf("ibeacon: Remove all except first 3 Expected count:%d actual count:%d", 3, n)
@@ -81,7 +81,7 @@ func TestLifeVisitAllCells(t *testing.T) {
 		t.Errorf("TestLifeVisitAllCells: Expected %d visits actual visits %d", 0, count)
 	}
 	count = 0
-	lg.AddCellsAtOffset(0, 0, 0b01, rle.coords)
+	lg.AddCellsAtOffset(0, 0, SELECT_MODE_MASK, rle.coords)
 	lg.VisitAllCells(func(lc *LifeCell) bool {
 		count++
 		return true
