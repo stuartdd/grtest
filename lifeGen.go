@@ -58,7 +58,7 @@ const (
 
 func NewLifeGen(genDone func(*LifeGen), runFor int) *LifeGen {
 	lg := &LifeGen{generations: make([]*LifeCell, 2), cellIndex: make([]*LifeCell, 2), cellCount: make([]int, 2), onGenDone: genDone, onGenStopped: nil}
-	lg.Clear()
+	lg.Reset()
 	lg.SetRunFor(runFor, nil)
 	return lg
 }
@@ -73,11 +73,26 @@ func (lg *LifeGen) GetRunFor() int {
 	return lg.runFor
 }
 
+// Cell count is calculated by teh NextGen method and is only valid After each gen
+// Use CountCells() for a reliable count but it is slower.
+func (lg *LifeGen) GetCellCount() int {
+	return lg.cellCount[lg.currentGenId]
+}
+
+func (lg *LifeGen) GetGenerationCount() int {
+	return lg.countGen
+}
+
+// Time taken for the last call to NextGen in milliseconds
+func (lg *LifeGen) GetGenerationTime() int64 {
+	return lg.timeMillis
+}
+
 func (lg *LifeGen) IsRunning() bool {
 	return lg.runFor > 0
 }
 
-func (lg *LifeGen) Clear() {
+func (lg *LifeGen) Reset() {
 	lg.cellIndex[LIFE_GEN_1] = nil
 	lg.cellIndex[LIFE_GEN_2] = nil
 	lg.generations[LIFE_GEN_1] = nil
@@ -91,50 +106,21 @@ func (lg *LifeGen) Clear() {
 	lg.timeMillis = 0
 }
 
-// Ensure correct generation switching
-func (lg *LifeGen) NextGenId() LifeGenId {
-	if lg.currentGenId == LIFE_GEN_1 {
-		return LIFE_GEN_2
-	}
-	return LIFE_GEN_1
-}
-
-// Scan current gen for the mid point cell (by ind).
-// This is so we dont have to scan ALL the cells to find the given cell.
-// Note this can only be done if the cells are ordered by their ind value.
-// Used by GetCell and GetCellFast
-func (lg *LifeGen) index(gen LifeGenId) *LifeCell {
-	g := lg.generations[lg.currentGenId]
-	if g == nil || g.next == nil {
-		return nil // None or 1 cell. Do not index!
-	}
-	low := g.ind
-	hi := low
-	for g != nil {
-		hi = g.ind
-		g = g.next
-	}
-	mid := low + ((hi - low) / 2)
-	g = lg.generations[lg.currentGenId]
-	for g != nil {
-		if g.ind >= mid {
-			return g
-		}
-		g = g.next
-	}
-	return nil
-}
-
 func (lg *LifeGen) ClearMode(mode int) {
-	cell := lg.generations[lg.currentGenId]
+	cell := lg.GetRootCell()
 	for cell != nil {
 		cell.mode = mode
 		cell = cell.next
 	}
 }
 
+// Get the current generations root cell
+func (lg *LifeGen) GetRootCell() *LifeCell {
+	return lg.generations[lg.currentGenId]
+}
+
 func (lg *LifeGen) CellsInBounds(X1, Y1, X2, Y2 int64, found func(*LifeCell)) {
-	cell := lg.generations[lg.currentGenId]
+	cell := lg.GetRootCell()
 	for cell != nil {
 		if cell.x >= X1 && cell.x <= X2 && cell.y >= Y1 && cell.y <= Y2 {
 			found(cell)
@@ -169,11 +155,11 @@ func (lg *LifeGen) NextGen() {
 	// Get current and next generation ids.
 	//
 	lg.startTimeMillis = time.Now().UnixMilli()
-	lg.cellIndex[lg.currentGenId] = lg.index(lg.currentGenId)
+	lg.cellIndex[lg.currentGenId] = lg.index()
 	deadCells := &LifeDeadCells{count: 0, root: nil}
 	count := 0
 	gen1 := lg.currentGenId
-	gen2 := lg.NextGenId()
+	gen2 := lg.nextGenId()
 
 	//
 	// scan current gen adding cells to next gen keeping track of any surrounding dead cells
@@ -186,14 +172,14 @@ func (lg *LifeGen) NextGen() {
 	for current != nil {
 		xc = current.x
 		yc = current.y
-		cn = lg.CountNear(xc, yc, deadCells)
+		cn = lg.countNear(xc, yc, deadCells)
 		//
 		// Number of surrounding live cells
 		// 		2 Means the cell continues in next gen
 		// 		3 Means the cell is new in next gen
 		//
 		if cn == 2 || cn == 3 {
-			count = count + lg.AddCell(xc, yc, current.mode, gen2)
+			count = count + lg.addCellToGen(xc, yc, current.mode, gen2)
 		}
 		current = current.next
 	}
@@ -204,12 +190,12 @@ func (lg *LifeGen) NextGen() {
 	for dc != nil {
 		xc = dc.x
 		yc = dc.y
-		cn = lg.CountNearFast(xc, yc)
+		cn = lg.countNearFast(xc, yc)
 		//
 		// If a dead cell position has 3 live surrounding cells it is alive in the nex generation
 		//
 		if cn == 3 {
-			count = count + lg.AddCell(xc, yc, dc.mode, gen2)
+			count = count + lg.addCellToGen(xc, yc, dc.mode, gen2)
 		}
 		dc = dc.next
 	}
@@ -239,42 +225,42 @@ func (lg *LifeGen) NextGen() {
 
 // Count cells around a dead cell to see if it will be live in the next gen
 // Only need to count up to 4 so finish early if count > 3
-func (lg *LifeGen) CountNearFast(x, y int64) int {
-	count := lg.GetCellFast(x-1, y-1)
-	count = count + lg.GetCellFast(x-1, y)
-	count = count + lg.GetCellFast(x-1, y+1)
-	count = count + lg.GetCellFast(x, y-1)
+func (lg *LifeGen) countNearFast(x, y int64) int {
+	count := lg.GetCell(x-1, y-1)
+	count = count + lg.GetCell(x-1, y)
+	count = count + lg.GetCell(x-1, y+1)
+	count = count + lg.GetCell(x, y-1)
 	if count > 3 {
 		return count
 	}
-	count = count + lg.GetCellFast(x, y+1)
+	count = count + lg.GetCell(x, y+1)
 	if count > 3 {
 		return count
 	}
-	count = count + lg.GetCellFast(x+1, y-1)
+	count = count + lg.GetCell(x+1, y-1)
 	if count > 3 {
 		return count
 	}
-	count = count + lg.GetCellFast(x+1, y)
+	count = count + lg.GetCell(x+1, y)
 	if count > 3 {
 		return count
 	}
-	count = count + lg.GetCellFast(x+1, y+1)
+	count = count + lg.GetCell(x+1, y+1)
 	return count
 }
 
 // Count cells around a live cell to see if it will be alive in the next generation
 // Because we dont store dead cells we need to remember any dead cell positions
 // surrounding the current cell so we can check them later.
-func (lg *LifeGen) CountNear(x, y int64, deadCells *LifeDeadCells) int {
-	count := lg.GetCell(x-1, y-1, deadCells)
-	count = count + lg.GetCell(x-1, y, deadCells)
-	count = count + lg.GetCell(x-1, y+1, deadCells)
-	count = count + lg.GetCell(x, y-1, deadCells)
-	count = count + lg.GetCell(x, y+1, deadCells)
-	count = count + lg.GetCell(x+1, y-1, deadCells)
-	count = count + lg.GetCell(x+1, y, deadCells)
-	count = count + lg.GetCell(x+1, y+1, deadCells)
+func (lg *LifeGen) countNear(x, y int64, deadCells *LifeDeadCells) int {
+	count := lg.getCellSlow(x-1, y-1, deadCells)
+	count = count + lg.getCellSlow(x-1, y, deadCells)
+	count = count + lg.getCellSlow(x-1, y+1, deadCells)
+	count = count + lg.getCellSlow(x, y-1, deadCells)
+	count = count + lg.getCellSlow(x, y+1, deadCells)
+	count = count + lg.getCellSlow(x+1, y-1, deadCells)
+	count = count + lg.getCellSlow(x+1, y, deadCells)
+	count = count + lg.getCellSlow(x+1, y+1, deadCells)
 	return count
 }
 
@@ -284,7 +270,7 @@ func (lg *LifeGen) CountNear(x, y int64, deadCells *LifeDeadCells) int {
 // If not counting dead cells use GetCellFast.
 // If the index has been found then start at the index if the cell is above or equal to it.
 // Return 0 if not found, 1 if found.
-func (lg *LifeGen) GetCell(x, y int64, deadCellList *LifeDeadCells) int {
+func (lg *LifeGen) getCellSlow(x, y int64, deadCellList *LifeDeadCells) int {
 	f := &LifeCell{x: x, y: y, ind: x*indexMult + y, mode: 0}
 	var c *LifeCell
 	if lg.cellIndex[lg.currentGenId] != nil && f.ind >= lg.cellIndex[lg.currentGenId].ind {
@@ -316,7 +302,7 @@ func (lg *LifeGen) GetCell(x, y int64, deadCellList *LifeDeadCells) int {
 // This is faster that GetCell as it does not cound surrounding dead cells.
 // If the index has been found then start at the index if the cell is above or equal to it.
 // Return 0 if not found, 1 if found.
-func (lg *LifeGen) GetCellFast(x, y int64) int {
+func (lg *LifeGen) GetCell(x, y int64) int {
 	f := &LifeCell{x: x, y: y, ind: x*indexMult + y, mode: 0}
 	var c *LifeCell
 	if lg.cellIndex[lg.currentGenId] != nil && f.ind >= lg.cellIndex[lg.currentGenId].ind {
@@ -348,7 +334,7 @@ func (lg *LifeGen) GetBounds() (int64, int64, int64, int64) {
 	var maxy int64 = math.MinInt64
 	var minx int64 = math.MaxInt64
 	var miny int64 = math.MaxInt64
-	cell := lg.generations[lg.currentGenId]
+	cell := lg.GetRootCell()
 	for cell != nil {
 		if cell.x > maxx {
 			maxx = cell.x
@@ -389,21 +375,25 @@ func (ldc *LifeDeadCells) addDeadCell(x, y int64) {
 	ldc.count++
 }
 
+func (lg *LifeGen) AddCell(x, y int64, mode int) {
+	lg.addCellToGen(x, y, mode, lg.currentGenId)
+}
+
 // Add a list of cells to a specific generation.
 // The cells can be added at a specific offset to allow new cells to be added in different places.
-func (lg *LifeGen) AddCellsAtOffset(x, y int64, mode int, c []int64, gen LifeGenId) int {
+// No duplicates are added. returns the number of cells added.
+func (lg *LifeGen) AddCellsAtOffset(x, y int64, mode int, c []int64) int {
 	n := 0
 	for i := 0; i < len(c); i = i + 2 {
-		n = n + lg.AddCell(x+c[i], y+c[i+1], mode, gen)
+		n = n + lg.addCellToGen(x+c[i], y+c[i+1], mode, lg.currentGenId)
 	}
-	lg.cellCount[gen] = lg.cellCount[gen] + n
+	lg.cellCount[lg.currentGenId] = lg.cellCount[lg.currentGenId] + n
 	return n
 }
 
-func (lg *LifeGen) RemoveCells(mask int) {
+func (lg *LifeGen) RemoveCellsWithMode(mask int) {
 	var root *LifeCell = nil
 	var prev *LifeCell = nil
-
 	lg.VisitAllCells(func(lc *LifeCell) bool {
 		if (lc.mode & mask) == 0 { // If mask not matched then Keep the cell
 			if root == nil {
@@ -421,7 +411,7 @@ func (lg *LifeGen) RemoveCells(mask int) {
 
 func (lg *LifeGen) CountCells() int {
 	count := 0
-	cell := lg.generations[lg.currentGenId]
+	cell := lg.GetRootCell()
 	for cell != nil {
 		count++
 		cell = cell.next
@@ -433,7 +423,7 @@ func (lg *LifeGen) VisitAllCells(callback func(*LifeCell) bool) bool {
 	if callback == nil {
 		return false
 	}
-	cell := lg.generations[lg.currentGenId]
+	cell := lg.GetRootCell()
 	for cell != nil {
 		if !callback(cell) {
 			return false
@@ -444,13 +434,13 @@ func (lg *LifeGen) VisitAllCells(callback func(*LifeCell) bool) bool {
 }
 
 // Remove a single cell.
-func (lg *LifeGen) RemoveCell(x, y int64, genId LifeGenId) {
-	c := lg.generations[genId]
+func (lg *LifeGen) RemoveCell(x, y int64) {
+	c := lg.generations[lg.currentGenId]
 	if c == nil {
 		return
 	}
 	if c.x == x && c.y == y {
-		lg.generations[genId] = c.next
+		lg.generations[lg.currentGenId] = c.next
 		return
 	}
 	p := c
@@ -471,7 +461,7 @@ func (lg *LifeGen) RemoveCell(x, y int64, genId LifeGenId) {
 //
 //	   	The root cell has the lowest ind value
 //			The last cess has the highes ind value
-func (lg *LifeGen) AddCell(x, y int64, mode int, genId LifeGenId) int {
+func (lg *LifeGen) addCellToGen(x, y int64, mode int, genId LifeGenId) int {
 	lg.cellIndex[genId] = nil
 	toAdd := &LifeCell{x: x, y: y, next: nil, ind: x*indexMult + y, mode: mode}
 	toAddid := toAdd.ind
@@ -514,6 +504,40 @@ func (lg *LifeGen) AddCell(x, y int64, mode int, genId LifeGenId) int {
 	return 1
 }
 
+// Ensure correct generation switching
+func (lg *LifeGen) nextGenId() LifeGenId {
+	if lg.currentGenId == LIFE_GEN_1 {
+		return LIFE_GEN_2
+	}
+	return LIFE_GEN_1
+}
+
+// Scan current gen for the mid point cell (by ind).
+// This is so we dont have to scan ALL the cells to find the given cell.
+// Note this can only be done if the cells are ordered by their ind value.
+// Used by GetCell and GetCellFast
+func (lg *LifeGen) index() *LifeCell {
+	g := lg.generations[lg.currentGenId]
+	if g == nil || g.next == nil {
+		return nil // None or 1 cell. Do not index!
+	}
+	low := g.ind
+	hi := low
+	for g != nil {
+		hi = g.ind
+		g = g.next
+	}
+	mid := low + ((hi - low) / 2)
+	g = lg.generations[lg.currentGenId]
+	for g != nil {
+		if g.ind >= mid {
+			return g
+		}
+		g = g.next
+	}
+	return nil
+}
+
 // Debugging string utils
 //
 //	Return the cells ind as a 16 digit string
@@ -525,7 +549,7 @@ func (lc *LifeCell) String() string {
 //
 //	List a generation verbose
 func (lg *LifeGen) String() string {
-	c := lg.generations[lg.currentGenId]
+	c := lg.GetRootCell()
 	if c == nil {
 		return "None"
 	}
@@ -542,7 +566,7 @@ func (lg *LifeGen) String() string {
 //
 //	List a generation (just x,y) values
 func (lg *LifeGen) Short() string {
-	c := lg.generations[lg.currentGenId]
+	c := lg.GetRootCell()
 	if c == nil {
 		return "None"
 	}
