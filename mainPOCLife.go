@@ -36,6 +36,7 @@ var (
 	startButton  *widget.Button
 	stepButton   *widget.Button
 	deleteButton *widget.Button
+	saveButton   *widget.Button
 	clearButton  *widget.Button
 	timeText     = widget.NewLabel("")
 	moverWidget  *MoverWidget
@@ -189,6 +190,7 @@ func POCLifeRunFor(n int) {
 	startButton.Disable()
 	stopButton.Enable()
 	deleteButton.Hide()
+	saveButton.Hide()
 }
 
 func POCLifeFileZero() {
@@ -201,38 +203,22 @@ func POCLifeFile(cellPosX, cellPosY int64, clearCells bool) {
 	} else {
 		POCLifeStop()
 		fbWidget.SetPath(currentWd)
-		fbWidget.SetOnMouseEvent(func(x, y float32, fbmet FileBrowseMouseEventType) {
-			l := fbWidget.SelectByMouse(x, y)
-			if l >= 0 {
-				p, selType := fbWidget.GetSelected()
-				switch fbmet {
-				case FB_ME_TAP:
-					fbWidget.Refresh()
-				case FB_ME_DTAP:
-					switch selType {
-					case FB_PARENT:
-						fbWidget.SetParentPath()
-					case FB_DIR:
-						fbWidget.SetPath(p)
-						currentWd = p
-					case FB_FILE:
-						fbWidget.Hide()
-						POCLifeStop()
-						rleFile, rleError = NewRleFile(p)
-						if rleError != nil {
-							panic(rleError)
-						}
-						if clearCells {
-							lifeGen.Reset()
-						}
-						ofsx, ofsy := rleFile.RleCenter()
-						lifeGen.AddCellsAtOffset(cellPosX-ofsx, cellPosY-ofsy, 0, rleFile.coords)
-						POCLifeRunFor(RUN_FOR_EVER)
-						lifeWindow.SetTitle(p)
-					}
-				}
+		fbWidget.SetOnSelectedEvent(func(fil, path string) error {
+			POCLifeStop()
+			rleFile, rleError = NewRleFile(fil)
+			if rleError != nil {
+				panic(rleError)
 			}
-		}, FB_ME_TAP|FB_ME_DTAP)
+			currentWd = path
+			if clearCells {
+				lifeGen.Reset()
+			}
+			ofsx, ofsy := rleFile.RleCenter()
+			lifeGen.AddCellsAtOffset(cellPosX-ofsx, cellPosY-ofsy, 0, rleFile.coords)
+			POCLifeRunFor(RUN_FOR_EVER)
+			lifeWindow.SetTitle(fil)
+			return nil
+		})
 		fbWidget.Show()
 	}
 }
@@ -268,6 +254,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 		return ""
 	})
 	topC := container.NewHBox()
+	topV := container.NewVBox()
 	botC := container.NewPadded()
 	startButton = widget.NewButton("Start (F1)", func() {
 		POCLifeRunFor(RUN_FOR_EVER)
@@ -281,13 +268,24 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	clearButton = widget.NewButton("Clear", func() {
 		lifeGen.Reset()
 	})
-
 	deleteButton = widget.NewButton("Delete", func() {
 		if len(selectedCellsXY) > 0 {
 			lifeGen.RemoveCellsWithMode(SELECT_MODE_MASK)
 		}
 	})
+	saveButton = widget.NewButton("Save", func() {
+		if len(selectedCellsXY) > 0 {
+			fbWidget.SaveFormShow(func(s string, save bool, err error) error {
+				fmt.Printf("SAVE %t %s\n", save, s)
+				fbWidget.SaveFormHide()
+				fbWidget.Hide()
+				return err
+			})
+			POCLifeFileZero()
+		}
+	})
 	deleteButton.Hide()
+	saveButton.Hide()
 	stepButton.Disable()
 	startButton.Disable()
 	clearButton.Disable()
@@ -329,6 +327,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	}))
 	topC.Add(lifeSeperator())
 	topC.Add(deleteButton)
+	topC.Add(saveButton)
 
 	botC.Add(timeText)
 	rleFile, rleError = NewRleFile("testdata/Infinite_growth.rle")
@@ -350,9 +349,15 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 				if !deleteButton.Visible() {
 					deleteButton.Show()
 				}
+				if !saveButton.Visible() {
+					saveButton.Show()
+				}
 			} else {
 				if deleteButton.Visible() {
 					deleteButton.Hide()
+				}
+				if saveButton.Visible() {
+					saveButton.Hide()
 				}
 			}
 		}
@@ -370,7 +375,9 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	moverWidget.AddTop(targetRect)
 	moverWidget.SetFileBrowserWidget(fbWidget)
 
-	return container.NewBorder(topC, botC, nil, nil, moverWidget)
+	topV.Add(topC)
+	topV.Add(fbWidget.InputForm("Save Selected Cells to a RLE File"))
+	return container.NewBorder(topV, botC, nil, nil, moverWidget)
 }
 
 func POCNormaliseCoords(in []int64) []int64 {

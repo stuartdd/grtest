@@ -25,16 +25,16 @@ var (
 )
 
 type FileBrowserWidgetLine struct {
-	visible      bool
-	lineNo       int
-	selectLineNo int
-	yOffset      float32
-	filePath     string
-	lineType     FileBrowserLineType
-	position     fyne.Position
-	size         fyne.Size
-	cText        *canvas.Text
-	rect         *canvas.Rectangle
+	visible  bool
+	lineNo   int
+	selected bool
+	yOffset  float32
+	filePath string
+	lineType FileBrowserLineType
+	position fyne.Position
+	size     fyne.Size
+	cText    *canvas.Text
+	rect     *canvas.Rectangle
 }
 
 var _ fyne.Widget = (*FileBrowserWidgetLine)(nil)
@@ -48,7 +48,7 @@ func NewFileBrowserWidgetLine(text string, filePath string, lineType FileBrowser
 	si := fyne.Size{Width: width, Height: me.Height * lineScale}
 	po := fyne.Position{X: 0, Y: si.Height * float32(lineNo)}
 	r.Resize(si)
-	return &FileBrowserWidgetLine{cText: t, filePath: filePath, rect: r, lineNo: lineNo, selectLineNo: -1, lineType: lineType, yOffset: (si.Height - me.Height) / 2, size: si, position: po}
+	return &FileBrowserWidgetLine{cText: t, filePath: filePath, rect: r, lineNo: lineNo, selected: false, lineType: lineType, yOffset: (si.Height - me.Height) / 2, size: si, position: po}
 }
 
 func (be *FileBrowserWidgetLine) isInside(x, y float32) bool {
@@ -90,7 +90,7 @@ func (be *FileBrowserWidgetLine) Position() fyne.Position {
 
 // Refresh must be called if this object should be redrawn because its inner state changed.
 func (be *FileBrowserWidgetLine) Refresh() {
-	if be.selectLineNo != -1 {
+	if be.selected {
 		be.rect.FillColor = FB_selectBgColour
 	} else {
 		be.rect.FillColor = FB_bgColour

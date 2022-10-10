@@ -5,24 +5,13 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-)
-
-type FileBrowseMouseEventType int
-
-const (
-	FB_ME_NONE FileBrowseMouseEventType = 0b00000000
-	FB_ME_DOWN FileBrowseMouseEventType = 0b00000001
-	FB_ME_UP   FileBrowseMouseEventType = 0b00000010
-	FB_ME_TAP  FileBrowseMouseEventType = 0b00000100
-	FB_ME_DTAP FileBrowseMouseEventType = 0b00001000
-	FB_ME_MIN  FileBrowseMouseEventType = 0b00010000
-	FB_ME_MOUT FileBrowseMouseEventType = 0b00100000
-	FB_ME_MOVE FileBrowseMouseEventType = 0b01000000
 )
 
 // Widget code starts here
@@ -36,10 +25,16 @@ type FileBrowserWidget struct {
 	textStyle         *fyne.TextStyle
 	textSize          float32
 	currentPath       string
-	onMouseEvent      func(float32, float32, FileBrowseMouseEventType)
-	mouseEventMask    FileBrowseMouseEventType
+	onSelectedEvent   func(string, string) error
 	onFileFoundEvent  func(fs.DirEntry, string, FileBrowserLineType) string
 	err               error
+	saveLabel         *widget.Label
+	saveEntry         *widget.Entry
+	saveCancel        *widget.Button
+	saveCommit        *widget.Button
+	saveForm          *fyne.Container
+	saveError         *widget.Label
+	saveNotify        func(string, bool, error) error
 }
 
 var _ desktop.Mouseable = (*MoverWidget)(nil)
@@ -48,29 +43,151 @@ var _ fyne.DoubleTappable = (*MoverWidget)(nil)
 var _ fyne.WidgetRenderer = (*fileBrowserWidgetRenderer)(nil)
 var _ fyne.Widget = (*FileBrowserWidget)(nil)
 var _ fyne.CanvasObject = (*FileBrowserWidget)(nil)
+var FBW_TEXT_STYLE = fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2}
+
+type FixedWHLayout struct {
+	w float32
+	h float32
+}
+
+func NewFixedWHLayout(w float32, h float32) *FixedWHLayout {
+	return &FixedWHLayout{w: w, h: h}
+}
+
+func (d *FixedWHLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	return fyne.NewSize(d.w, d.h)
+}
+
+func (d *FixedWHLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size) {
+	var wid float32 = 0
+	for _, o := range objects {
+		_, ok := o.(*widget.Entry)
+		if !ok {
+			wid = wid + o.MinSize().Width
+		}
+	}
+	var pos float32 = 0
+	var min float32 = 0
+	for _, o := range objects {
+		_, ok := o.(*widget.Entry)
+		if ok {
+			min = containerSize.Width - wid
+		} else {
+			min = o.MinSize().Width
+		}
+		o.Resize(fyne.NewSize(min, d.h))
+		o.Move(fyne.Position{X: pos, Y: 0})
+		pos = pos + min
+	}
+}
+
+var _ fyne.Layout = (*FixedWHLayout)(nil)
 
 // Create a Widget and Extend (initialiase) the BaseWidget
 func NewFileBrowserWidget(cx, cy float64) *FileBrowserWidget {
 	w := &FileBrowserWidget{ // Create this widget with an initial text value
-		objects:        make([]fyne.CanvasObject, 0),
-		minSize:        fyne.Size{Width: float32(cx), Height: float32(cy)},
-		size:           fyne.Size{Width: float32(cx), Height: float32(cy)},
-		textStyle:      &fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2},
-		textSize:       fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameText),
-		mouseEventMask: FB_ME_NONE,
-		currentPath:    "",
-		err:            nil,
+		objects:     make([]fyne.CanvasObject, 0),
+		minSize:     fyne.Size{Width: float32(cx), Height: float32(cy)},
+		size:        fyne.Size{Width: float32(cx), Height: float32(cy)},
+		textStyle:   &fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2},
+		textSize:    fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameText),
+		currentPath: "",
+		err:         nil,
 	}
 	w.ExtendBaseWidget(w) // Initialiase the BaseWidget
 	w.BaseWidget.Resize(w.size)
 	return w
 }
 
+func (w *FileBrowserWidget) SaveFormHide() {
+	if w.saveForm != nil {
+		w.saveNotify = nil
+		w.saveForm.Hide()
+	}
+}
+
+func (w *FileBrowserWidget) saveActionNotify(save bool, err error) {
+	if w.saveNotify != nil {
+		ent := strings.TrimSpace(w.saveEntry.Text)
+		if ent == "" {
+			return
+		}
+		err := w.saveNotify(path.Join(w.currentPath, ent), save, err)
+		if err != nil {
+			w.saveEntry.Hide()
+			w.saveError.Text = fmt.Sprintf(" ERROR:%s", err.Error())
+			w.saveError.Show()
+		} else {
+			w.saveEntry.Show()
+			w.saveError.Text = ""
+			w.saveError.Hide()
+		}
+	}
+}
+func (w *FileBrowserWidget) saveDataChanged(s string) {
+	if w.saveNotify != nil {
+		ent := strings.TrimSpace(w.saveEntry.Text)
+		if ent == "" {
+			return
+		}
+		full := path.Join(w.currentPath, ent)
+		_, errStat := os.Stat(full)
+		if os.IsNotExist(errStat) {
+			w.saveCommit.Text = "Save"
+		} else {
+			w.saveCommit.Text = "* Overwrite *"
+		}
+		w.saveForm.Refresh()
+	}
+}
+
+func (mc *FileBrowserWidget) updateFileEntry(s string) {
+	x := mc.saveEntry.OnChanged
+	mc.saveEntry.OnChanged = nil
+	mc.saveEntry.Text = s
+	mc.saveEntry.OnChanged = x
+	mc.saveDataChanged(s)
+}
+
+func (w *FileBrowserWidget) SaveFormShow(f func(string, bool, error) error) {
+	if w.saveForm != nil {
+		w.saveNotify = f
+		w.saveEntry.OnSubmitted = func(s string) {
+			w.saveActionNotify(true, nil)
+		}
+		w.saveForm.Show()
+	}
+}
+
+func (w *FileBrowserWidget) InputForm(prompt string) *fyne.Container {
+	w.saveLabel = widget.NewLabelWithStyle(prompt, fyne.TextAlignCenter, FBW_TEXT_STYLE)
+	w.saveEntry = widget.NewEntry()
+	w.saveEntry.TextStyle = FBW_TEXT_STYLE
+	w.saveEntry.PlaceHolder = "Enter a file name"
+	w.saveCancel = widget.NewButton("Cancel", func() {
+		w.saveActionNotify(false, nil)
+	})
+	w.saveCommit = widget.NewButton("Save", func() {
+		w.saveActionNotify(true, nil)
+	})
+	w.saveCommit.Importance = widget.HighImportance
+	w.saveEntry = widget.NewEntry()
+	w.saveError = widget.NewLabelWithStyle("", fyne.TextAlignCenter, FBW_TEXT_STYLE)
+	w.saveEntry.OnSubmitted = func(s string) {
+		w.saveActionNotify(true, nil)
+	}
+	w.saveEntry.OnChanged = w.saveDataChanged
+	w.saveError.Hide()
+	w.saveForm = container.New(NewFixedWHLayout(100, 40), w.saveLabel, w.saveError, w.saveEntry, w.saveCancel, w.saveCommit)
+	w.saveForm.Hide()
+	return w.saveForm
+}
+
 func (w *FileBrowserWidget) GetSelected() (string, FileBrowserLineType) {
 	for _, o := range w.objects {
 		ow, ok := o.(*FileBrowserWidgetLine)
 		if ok {
-			if ow.selectLineNo >= 0 {
+			if ow.selected {
 				return ow.filePath, ow.lineType
 			}
 		}
@@ -92,8 +209,7 @@ func (w *FileBrowserWidget) SetPath(newPath string) {
 	line := 0
 	coFile := make([]fyne.CanvasObject, 0)
 	coDir := make([]fyne.CanvasObject, 0)
-	par, err := PathToParentPath(newPath)
-	fmt.Printf("Current %s Parent %s\n", newPath, par)
+	_, err := PathToParentPath(newPath)
 	if err == nil && newPath != "/" {
 		fbe := NewFileBrowserWidgetLine(".. (up to parent directory)", "..", FB_PARENT, *w.textStyle, w.textSize, line, 2, w.size.Width)
 		coDir = append(coDir, fbe)
@@ -132,23 +248,26 @@ func (w *FileBrowserWidget) SetPath(newPath string) {
 		}
 	}
 	w.currentPath = newPath
+	if w.saveForm != nil {
+		w.saveDataChanged(w.saveEntry.Text)
+	}
 	w.objects = append(coDir, coFile...)
 }
 
-func (mc *FileBrowserWidget) SelectByMouse(x, y float32) int {
-	lin := -1
+func (mc *FileBrowserWidget) selectByMouse(x, y float32) *FileBrowserWidgetLine {
+	var fbwlSel *FileBrowserWidgetLine
 	for _, o := range mc.objects {
 		fbwl, ok := o.(*FileBrowserWidgetLine)
 		if ok {
 			if fbwl.isInside(x, y) {
-				lin = fbwl.lineNo
-				fbwl.selectLineNo = lin
+				fbwl.selected = true
+				fbwlSel = fbwl
 			} else {
-				fbwl.selectLineNo = -1
+				fbwl.selected = false
 			}
 		}
 	}
-	return lin
+	return fbwlSel
 }
 
 // Create the renderer. This is called by the fyne application
@@ -162,67 +281,41 @@ func (mc *FileBrowserWidget) SetOnFileFoundEvent(f func(fs.DirEntry, string, Fil
 	mc.onFileFoundEvent = f
 }
 
-func (mc *FileBrowserWidget) SetOnMouseEvent(f func(float32, float32, FileBrowseMouseEventType), mask FileBrowseMouseEventType) {
-	mc.onMouseEvent = f
-	mc.mouseEventMask = mask
-}
-
-func (mc *FileBrowserWidget) SetOnMouseEventMask(mask FileBrowseMouseEventType) {
-	if mask == FB_ME_NONE {
-		mc.mouseEventMask = FB_ME_NONE
-	} else {
-		mc.mouseEventMask = mc.mouseEventMask | mask
-	}
-}
-
-// MouseIn is a hook that is called if the mouse pointer enters the element.
-func (mc *FileBrowserWidget) MouseIn(me *desktop.MouseEvent) {
-	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_MIN) != 0 {
-		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_MIN)
-	}
-}
-
-// MouseMoved is a hook that is called if the mouse pointer moved over the element.
-func (mc *FileBrowserWidget) MouseMoved(me *desktop.MouseEvent) {
-	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_MOVE) != 0 {
-		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_MOVE)
-	}
-}
-
-// MouseOut is a hook that is called if the mouse pointer leaves the element.
-func (mc *FileBrowserWidget) MouseOut() {
-	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_MOUT) != 0 {
-		mc.onMouseEvent(0, 0, FB_ME_MOUT)
-	}
-}
-
-func (mc *FileBrowserWidget) MouseDown(me *desktop.MouseEvent) {
-	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_DOWN) != 0 {
-		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_DOWN)
-	}
-}
-
-func (mc *FileBrowserWidget) MouseUp(me *desktop.MouseEvent) {
-	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_UP) != 0 {
-		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_UP)
-	}
+func (mc *FileBrowserWidget) SetOnSelectedEvent(f func(string, string) error) {
+	mc.onSelectedEvent = f
 }
 
 func (mc *FileBrowserWidget) Tapped(me *fyne.PointEvent) {
-	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_TAP) != 0 {
+	if mc.onSelectedEvent != nil {
 		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_TAP)
+		fbwl := mc.selectByMouse(me.Position.X-d, me.Position.Y-d)
+		if fbwl != nil {
+			if mc.saveForm != nil && fbwl.lineType == FB_FILE {
+				_, f := path.Split(fbwl.filePath)
+				mc.updateFileEntry(f)
+			}
+			go mc.Refresh()
+		}
 	}
 }
 
 func (mc *FileBrowserWidget) DoubleTapped(me *fyne.PointEvent) {
-	if mc.onMouseEvent != nil && (mc.mouseEventMask&FB_ME_DTAP) != 0 {
+	if mc.onSelectedEvent != nil {
 		d := me.AbsolutePosition.X - me.Position.X
-		mc.onMouseEvent(me.Position.X-d, me.Position.Y-d, FB_ME_DTAP)
+		fbwl := mc.selectByMouse(me.Position.X-d, me.Position.Y-d)
+		if fbwl != nil {
+			switch fbwl.lineType {
+			case FB_PARENT:
+				go mc.SetParentPath()
+			case FB_DIR:
+				go fbWidget.SetPath(fbwl.filePath)
+			case FB_FILE:
+				err := mc.onSelectedEvent(fbwl.filePath, mc.currentPath)
+				if err == nil {
+					mc.Hide()
+				}
+			}
+		}
 	}
 }
 
