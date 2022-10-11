@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -22,6 +23,10 @@ const (
 )
 
 var (
+	moverWidget     *MoverWidget
+	fbWidget        *FileBrowserWidget
+	lifeWindow      fyne.Window
+	lifeController  *MoverController
 	lifeGen         *LifeGen
 	lifeGenStopped  bool
 	selectedCellsXY []int64
@@ -29,8 +34,8 @@ var (
 	dots         []*canvas.Circle = make([]*canvas.Circle, 0)
 	dotsPos      int              = 0
 	gridSize     int64            = 6
-	xOffset      int64            = 10
-	yOffset      int64            = 10
+	xOffset      int64            = 0
+	yOffset      int64            = 0
 	currentDelay int64            = 100
 	currentWd    string
 	stopButton   *widget.Button
@@ -42,9 +47,6 @@ var (
 	fasterButton *widget.Button
 	slowerButton *widget.Button
 	timeText     = widget.NewLabel("")
-	moverWidget  *MoverWidget
-	fbWidget     *FileBrowserWidget
-	lifeWindow   fyne.Window
 	targetDot    *canvas.Circle
 	targetRect   *canvas.Rectangle
 	rleFile      *RLE
@@ -80,10 +82,7 @@ func POCLifeMouseEvent(me *MoverWidgetMouseEvent) {
 		}
 		targetDot.Show()
 	case MM_ME_DTAP:
-		if lifeGen.IsRunning() {
-			POCLifeStop()
-			return
-		}
+		POCLifeStop()
 		POCLifeFile(cellX1, cellY1, false)
 	case MM_ME_DRAG:
 		targetRect.Move(*me.Position())
@@ -153,8 +152,22 @@ func POCLifeKeyPress(key string) {
 		POCLifeSetSlower()
 	case "f", "F":
 		POCLifeSetFaster()
+	case "c", "C":
+		POCLifeHome()
 	}
 }
+func POCLifeHome() {
+	runsRemaining := POCLifeStop()
+	midX := (int64(lifeWindow.Canvas().Size().Width) / gridSize)
+	midY := (int64(lifeWindow.Canvas().Size().Height) / gridSize)
+	x1, y1, x2, y2 := lifeGen.GetBounds()
+	xOffset = ((midX - (x2 - x1)) / 2) - x1
+	yOffset = ((midY - (y2 - y1)) / 2) - y1
+	if runsRemaining > 0 {
+		POCLifeRunFor(runsRemaining)
+	}
+}
+
 func POCLifeSetSlower() {
 	currentDelay = currentDelay + 10
 	fasterButton.Enable()
@@ -162,7 +175,7 @@ func POCLifeSetSlower() {
 		currentDelay = 400
 		slowerButton.Disable()
 	}
-	mainController.animation.delay = currentDelay
+	lifeController.SetAnimationDelay(currentDelay)
 }
 
 func POCLifeSetFaster() {
@@ -172,7 +185,7 @@ func POCLifeSetFaster() {
 		currentDelay = 10
 		fasterButton.Disable()
 	}
-	mainController.animation.delay = currentDelay
+	lifeController.SetAnimationDelay(currentDelay)
 }
 
 func POCLifeSetGridSize(inc bool) {
@@ -186,18 +199,27 @@ func POCLifeSetGridSize(inc bool) {
 	targetDot.Resize(fyne.Size{Width: float32(gridSize), Height: float32(gridSize)})
 }
 
-func POCLifeStop() {
-	lifeGen.SetRunFor(0, nil)
+func POCLifeStop() int {
+	runsRemaining := lifeGen.GetRunFor()
+	if lifeGen.IsRunning() {
+		notStopped := true
+		lifeGen.SetRunFor(1, func(lg *LifeGen) {
+			notStopped = false
+		})
+		for notStopped {
+			time.Sleep(time.Millisecond * 100)
+		}
+	}
 	lifeGenStopped = true
 	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_MOVE|MM_ME_DOWN|MM_ME_UP|MM_ME_TAP|MM_ME_DTAP)
-	if mainController.animation != nil {
-		mainController.animation.delay = 200
-	}
+
+	lifeController.SetAnimationDelay(200)
 	targetDot.Show()
 	stepButton.Enable()
 	clearButton.Enable()
 	startButton.Enable()
 	stopButton.Disable()
+	return runsRemaining
 }
 
 func POCLifeRunFor(n int) {
@@ -206,9 +228,7 @@ func POCLifeRunFor(n int) {
 	})
 	lifeGenStopped = false
 	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_DTAP)
-	if mainController.animation != nil {
-		mainController.animation.delay = 50
-	}
+	lifeController.SetAnimationDelay(currentDelay)
 	targetDot.Hide()
 	targetRect.Hide()
 	stepButton.Disable()
@@ -252,9 +272,10 @@ func POCLifeFile(cellPosX, cellPosY int64, clearCells bool) {
 /*
 -------------------------------------------------------------------- main
 */
-func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *MoverController) *fyne.Container {
+func MainPOCLife(mainWindow fyne.Window, width, height float64, moverController *MoverController) *fyne.Container {
 	lifeWindow = mainWindow
-	controller.SetAnimationDelay(100)
+	lifeController = moverController
+	lifeController.SetAnimationDelay(100)
 	currentWd, _ = os.Getwd()
 	moverWidget = NewMoverWidget(width, height)
 	targetDot = canvas.NewCircle(color.RGBA{250, 0, 0, 255})
@@ -357,6 +378,9 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	topC.Add(widget.NewButton(">", func() {
 		POCLifeKeyPress("Right")
 	}))
+	topC.Add(widget.NewButton("C", func() {
+		POCLifeKeyPress("C")
+	}))
 	topC.Add(fasterButton)
 	topC.Add(slowerButton)
 	topC.Add(lifeSeperator())
@@ -373,11 +397,11 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	POCLifeRunFor(RUN_FOR_EVER)
 	mainWindow.SetTitle(fmt.Sprintf("File:%s", rleFile.fileName))
 
-	controller.SetOnKeyPress(func(key *fyne.KeyEvent) {
+	lifeController.SetOnKeyPress(func(key *fyne.KeyEvent) {
 		POCLifeKeyPress(string(key.Name))
 	})
 
-	controller.AddBeforeUpdate(func(f float64) bool {
+	lifeController.AddBeforeUpdate(func(f float64) bool {
 		if lifeGenStopped {
 			if len(selectedCellsXY) > 0 {
 				if !saveButton.Visible() {
@@ -406,7 +430,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 			POCLifeGetDot(cell.x, cell.y, cell.mode, moverWidget)
 			cell = cell.next
 		}
-		timeText.SetText(fmt.Sprintf("Delay: %03dms Time: %05dms Gen: %05d Cells:%05d", mainController.animation.delay, lifeGen.GetGenerationTime(), lifeGen.GetGenerationCount(), lifeGen.GetCellCount()))
+		timeText.SetText(fmt.Sprintf("Delay: %03dms Time: %05dms Gen: %05d Cells:%05d", lifeController.GetAnimationDelay(), lifeGen.GetGenerationTime(), lifeGen.GetGenerationCount(), lifeGen.GetCellCount()))
 		return false
 	})
 	moverWidget.AddTop(targetDot)

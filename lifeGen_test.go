@@ -7,6 +7,53 @@ import (
 	"time"
 )
 
+func TestLifeRunFor(t *testing.T) {
+	rle, err := NewRleFile("testdata/ibeacon.rle")
+	if err != nil {
+		t.Errorf("RLE File load failed. %e", err)
+	}
+	if len(rle.coords) != 36 {
+		t.Errorf("ibeacon: Expected len(coords):%d actual len(coords):%d", 36, len(rle.coords))
+	}
+	testLifeDoneCall(t, rle, 0, 0)
+	testLifeDoneCall(t, rle, 1, 1)
+	testLifeDoneCall(t, rle, 2, 1)
+	testLifeDoneCall(t, rle, 3, 1)
+
+}
+
+func testLifeDoneCall(t *testing.T, rle *RLE, calls, stops int) {
+	doneCalls := 0
+	stopCalls := 0
+	lg := NewLifeGen(func(lg *LifeGen) {
+		doneCalls++
+	}, calls)
+	lg.AddCellsAtOffset(0, 0, 0b01, rle.coords)
+	lg.onGenStopped = func(l *LifeGen) {
+		stopCalls++
+	}
+	for i := 0; i < (calls + 2); i++ {
+		lg.NextGen()
+	}
+	if calls > 0 { // need to wait as doneCalls is called async
+		c := 0
+		for doneCalls < calls {
+			time.Sleep(time.Millisecond * 100)
+			c++
+			if c > 10 { // dont wait forever!
+				t.Errorf("ibeacon: RunFor doneCalls expected:%d Timed out with:%d", calls, doneCalls)
+				return
+			}
+		}
+	}
+	if doneCalls != calls {
+		t.Errorf("ibeacon: RunFor doneCalls expected:%d actual doneCalls:%d", calls, doneCalls)
+	}
+	if stopCalls != stops {
+		t.Errorf("ibeacon: RunFor doneCalls expected:%d actual doneCalls:%d", stops, stopCalls)
+	}
+}
+
 func TestLifeRemoveCells(t *testing.T) {
 	rle, err := NewRleFile("testdata/ibeacon.rle")
 	if err != nil {

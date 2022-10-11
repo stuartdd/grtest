@@ -74,10 +74,14 @@ func (mc *MoverController) KeyPress(key *fyne.KeyEvent) {
 
 func (mc *MoverController) SetAnimationDelay(delay int64) {
 	mc.animationDelay = delay
+	if mc.animation != nil {
+		mc.animation.delay = delay
+	}
 }
 
 func (mc *MoverController) GetAnimationDelay() int64 {
 	return mc.animationDelay
+
 }
 
 func (mc *MoverController) SetOnKeyPress(keyPress func(*fyne.KeyEvent)) {
@@ -143,9 +147,7 @@ func (mc *MoverController) StartAnimation() {
 	}
 }
 
-//
 // Animation control -----------------------------------------------------------------------
-//
 type AnimationController struct {
 	fastAnimation *fyne.Animation
 	ft            float32

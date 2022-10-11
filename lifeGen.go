@@ -134,21 +134,10 @@ func (lg *LifeGen) CellsInBounds(X1, Y1, X2, Y2 int64, found func(*LifeCell)) {
 // Scan the current generation and produce the next generation.
 // Then swap generations so the next gen becomes the current gen
 func (lg *LifeGen) NextGen() {
-	//
-	// Run N (runFor) generations then Stop.
-	// Use the callback (onGenStopped) to notify the controller when stopped.
-	// See RUN_FOR_EVER.
-	// Once called the onGenStopped will need to be set again. It is only called ONCE.
-	//
-	lg.runFor = lg.runFor - 1
-	if lg.runFor < 0 {
-		if lg.onGenStopped != nil {
-			f := lg.onGenStopped
-			lg.onGenStopped = nil
-			f(lg)
-		}
+	if lg.runFor <= 0 {
 		return
 	}
+	//
 	// If startTimeMillis is not 0 then we a concurrently calling NextGen before it is finished!
 	//
 	// Record start time
@@ -222,6 +211,19 @@ func (lg *LifeGen) NextGen() {
 	//
 	if lg.onGenDone != nil {
 		go lg.onGenDone(lg)
+	}
+	// Run N (runFor) generations then Stop.
+	// Use the callback (onGenStopped) to notify the controller when stopped.
+	// See RUN_FOR_EVER.
+	// Once called the onGenStopped will need to be set again. It is only called ONCE.
+	//
+	lg.runFor = lg.runFor - 1
+	if lg.runFor <= 0 {
+		if lg.onGenStopped != nil {
+			f := lg.onGenStopped
+			lg.onGenStopped = nil
+			f(lg)
+		}
 	}
 }
 
