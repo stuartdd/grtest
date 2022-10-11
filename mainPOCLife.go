@@ -31,6 +31,7 @@ var (
 	gridSize     int64            = 6
 	xOffset      int64            = 10
 	yOffset      int64            = 10
+	currentDelay int64            = 100
 	currentWd    string
 	stopButton   *widget.Button
 	startButton  *widget.Button
@@ -38,6 +39,8 @@ var (
 	deleteButton *widget.Button
 	saveButton   *widget.Button
 	clearButton  *widget.Button
+	fasterButton *widget.Button
+	slowerButton *widget.Button
 	timeText     = widget.NewLabel("")
 	moverWidget  *MoverWidget
 	fbWidget     *FileBrowserWidget
@@ -146,7 +149,30 @@ func POCLifeKeyPress(key string) {
 		POCLifeSetGridSize(true)
 	case "-", "_":
 		POCLifeSetGridSize(false)
+	case "s", "S":
+		POCLifeSetSlower()
+	case "f", "F":
+		POCLifeSetFaster()
 	}
+}
+func POCLifeSetSlower() {
+	currentDelay = currentDelay + 10
+	fasterButton.Enable()
+	if currentDelay >= 400 {
+		currentDelay = 400
+		slowerButton.Disable()
+	}
+	mainController.animation.delay = currentDelay
+}
+
+func POCLifeSetFaster() {
+	currentDelay = currentDelay - 10
+	slowerButton.Enable()
+	if currentDelay <= 10 {
+		currentDelay = 10
+		fasterButton.Disable()
+	}
+	mainController.animation.delay = currentDelay
 }
 
 func POCLifeSetGridSize(inc bool) {
@@ -181,7 +207,7 @@ func POCLifeRunFor(n int) {
 	lifeGenStopped = false
 	moverWidget.SetOnMouseEvent(POCLifeMouseEvent, MM_ME_DTAP)
 	if mainController.animation != nil {
-		mainController.animation.delay = 100
+		mainController.animation.delay = 50
 	}
 	targetDot.Hide()
 	targetRect.Hide()
@@ -284,6 +310,12 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 			POCLifeFileZero()
 		}
 	})
+	fasterButton = widget.NewButton("F", func() {
+		POCLifeSetFaster()
+	})
+	slowerButton = widget.NewButton("S", func() {
+		POCLifeSetSlower()
+	})
 	deleteButton.Hide()
 	saveButton.Hide()
 	stepButton.Disable()
@@ -325,6 +357,8 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 	topC.Add(widget.NewButton(">", func() {
 		POCLifeKeyPress("Right")
 	}))
+	topC.Add(fasterButton)
+	topC.Add(slowerButton)
 	topC.Add(lifeSeperator())
 	topC.Add(deleteButton)
 	topC.Add(saveButton)
@@ -345,21 +379,25 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 
 	controller.AddBeforeUpdate(func(f float64) bool {
 		if lifeGenStopped {
+			if len(selectedCellsXY) > 0 {
+				if !saveButton.Visible() {
+					saveButton.Show()
+				}
+			} else {
+				if saveButton.Visible() {
+					saveButton.Hide()
+				}
+			}
 			if lifeGen.CountCellsWithMode(SELECT_MODE_MASK) > 0 {
 				if !deleteButton.Visible() {
 					deleteButton.Show()
-				}
-				if !saveButton.Visible() {
-					saveButton.Show()
 				}
 			} else {
 				if deleteButton.Visible() {
 					deleteButton.Hide()
 				}
-				if saveButton.Visible() {
-					saveButton.Hide()
-				}
 			}
+
 		}
 		lifeGen.NextGen()
 		POCLifeResetDot()
@@ -368,7 +406,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, controller *Move
 			POCLifeGetDot(cell.x, cell.y, cell.mode, moverWidget)
 			cell = cell.next
 		}
-		timeText.SetText(fmt.Sprintf("Time: %05dms Gen: %05d Cells:%05d", lifeGen.GetGenerationTime(), lifeGen.GetGenerationCount(), lifeGen.GetCellCount()))
+		timeText.SetText(fmt.Sprintf("Delay: %03dms Time: %05dms Gen: %05d Cells:%05d", mainController.animation.delay, lifeGen.GetGenerationTime(), lifeGen.GetGenerationCount(), lifeGen.GetCellCount()))
 		return false
 	})
 	moverWidget.AddTop(targetDot)

@@ -109,7 +109,7 @@ func (w *FileBrowserWidget) SaveFormHide() {
 func (w *FileBrowserWidget) saveActionNotify(save bool, err error) {
 	if w.saveNotify != nil {
 		ent := strings.TrimSpace(w.saveEntry.Text)
-		if ent == "" {
+		if ent == "" && save {
 			return
 		}
 		err := w.saveNotify(path.Join(w.currentPath, ent), save, err)
