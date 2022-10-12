@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 )
@@ -18,8 +17,9 @@ func TestFileEncode(t *testing.T) {
 	if err != nil {
 		t.Errorf("RLE File load failed. %e", err)
 	}
-	fmt.Printf("%s\n", rle)
-	fmt.Printf("Enc[%s]\n", rle.Encode())
+	if rle.encoded != rle.Encode() {
+		t.Errorf("RLE File Encode failed. \n%s\n%s", rle.encoded, rle.Encode())
+	}
 
 }
 

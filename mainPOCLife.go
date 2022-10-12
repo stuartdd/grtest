@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"io/fs"
-	"math"
 	"os"
 	"path"
 	"strings"
@@ -98,7 +97,7 @@ func POCLifeMouseEvent(me *MoverWidgetMouseEvent) {
 		})
 		tmp := lifeGen.ListCellsWithMode(SELECT_MODE_MASK)
 		if len(tmp) > 0 {
-			selectedCellsXY = POCNormaliseCoords(tmp)
+			selectedCellsXY, _, _ = POCNormaliseCoords(tmp)
 		}
 	case MM_ME_MOVE:
 		if me.Dragging {
@@ -259,7 +258,7 @@ func POCLifeFile(cellPosX, cellPosY int64, clearCells bool) {
 			if clearCells {
 				lifeGen.Reset()
 			}
-			ofsx, ofsy := rleFile.RleCenter()
+			ofsx, ofsy := rleFile.Center()
 			lifeGen.AddCellsAtOffset(cellPosX-ofsx, cellPosY-ofsy, 0, rleFile.coords)
 			POCLifeRunFor(RUN_FOR_EVER)
 			lifeWindow.SetTitle(fil)
@@ -441,25 +440,6 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, moverController 
 	topV.Add(topC)
 	topV.Add(fbWidget.InputForm("Save Selected Cells to a RLE File"))
 	return container.NewBorder(topV, botC, nil, nil, moverWidget)
-}
-
-func POCNormaliseCoords(in []int64) []int64 {
-	out := make([]int64, len(in))
-	minx := int64(math.MaxInt64)
-	miny := int64(math.MaxInt64)
-	for i := 0; i < len(in); i = i + 2 {
-		if in[i] < minx {
-			minx = in[i]
-		}
-		if in[i+1] < miny {
-			miny = in[i+1]
-		}
-	}
-	for i := 0; i < len(in); i = i + 2 {
-		out[i] = in[i] - minx
-		out[i+1] = in[i+1] - miny
-	}
-	return out
 }
 
 func POCLifeResetDot() {

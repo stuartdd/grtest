@@ -90,7 +90,7 @@ func NewRleFile(fileName string) (*RLE, error) {
 	return rle, nil
 }
 
-func (rle *RLE) RleCenter() (int64, int64) {
+func (rle *RLE) Center() (int64, int64) {
 	if len(rle.coords) == 0 {
 		return 0, 0
 	}
@@ -151,7 +151,57 @@ func (rle *RLE) rleDecodeString(rleStr string) (string, []int64) {
 }
 
 func (rle *RLE) Encode() string {
-	return "e"
+	return RLEEncodeCoords(rle.coords)
+}
+
+func RLEEncodeCoords(coords []int64) string {
+	co, w, h := POCNormaliseCoords(coords)
+	var enc strings.Builder
+	for y := 0; y < int(h); y++ {
+		countOn := 0
+		countOff := 0
+		for x := 0; x < int(w); x++ {
+			found := false
+			for i := 0; i < len(co); i = i + 2 {
+				if x == int(co[i]) && y == int(co[i+1]) {
+					found = true
+					break
+				}
+			}
+			if found {
+				countOff = rleEncodeAppend(&enc, countOff, false)
+				countOn++
+			} else {
+				countOn = rleEncodeAppend(&enc, countOn, true)
+				countOff++
+			}
+		}
+		if y < int(h-1) {
+			rleEncodeAppend(&enc, countOff, false)
+			rleEncodeAppend(&enc, countOn, true)
+			enc.WriteString("$")
+		} else {
+			rleEncodeAppend(&enc, countOn, true)
+			enc.WriteString("!")
+		}
+	}
+	return enc.String()
+
+}
+
+func rleEncodeAppend(enc *strings.Builder, n int, on bool) int {
+	if n > 0 {
+		c := "b"
+		if on {
+			c = "o"
+		}
+		if n == 1 {
+			enc.WriteString(c)
+		} else {
+			enc.WriteString(fmt.Sprintf("%d%s", n, c))
+		}
+	}
+	return 0
 }
 
 func (rle *RLE) String() string {
@@ -185,4 +235,32 @@ func PathToParentPath(p string) (string, error) {
 	}
 	fpp := filepath.Dir(p)
 	return fpp, nil
+}
+
+func POCNormaliseCoords(in []int64) ([]int64, int64, int64) {
+	out := make([]int64, len(in))
+	minx := int64(math.MaxInt64)
+	miny := int64(math.MaxInt64)
+	maxx := int64(math.MinInt64)
+	maxy := int64(math.MinInt64)
+
+	for i := 0; i < len(in); i = i + 2 {
+		if in[i] < minx {
+			minx = in[i]
+		}
+		if in[i] > maxx {
+			maxx = in[i]
+		}
+		if in[i+1] < miny {
+			miny = in[i+1]
+		}
+		if in[i+1] > maxy {
+			maxy = in[i+1]
+		}
+	}
+	for i := 0; i < len(in); i = i + 2 {
+		out[i] = in[i] - minx
+		out[i+1] = in[i+1] - miny
+	}
+	return out, (maxx - minx) + 1, (maxy - miny) + 1
 }
