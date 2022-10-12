@@ -378,6 +378,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, moverController 
 	topC.Add(widget.NewButton(">", func() {
 		POCLifeKeyPress("Right")
 	}))
+	topC.Add(lifeSeperator())
 	topC.Add(widget.NewButton("C", func() {
 		POCLifeKeyPress("C")
 	}))

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -11,6 +12,15 @@ func TestFileLoadPaths(t *testing.T) {
 	AssertFileLoad(t, "testdata/fileXXX.bat", "no such file or directory")
 	AssertFileLoad(t, "testdata/ibeacon.rle", "is not a dir")
 	AssertTailFileLoad(t, "testdata", "/grtest")
+}
+func TestFileEncode(t *testing.T) {
+	rle, err := NewRleFile("testdata/rats.rle")
+	if err != nil {
+		t.Errorf("RLE File load failed. %e", err)
+	}
+	fmt.Printf("%s\n", rle)
+	fmt.Printf("Enc[%s]\n", rle.Encode())
+
 }
 
 func AssertFileLoad(t *testing.T, path, exp string) {

@@ -15,6 +15,7 @@ type RLE struct {
 	fileName string
 	decoded  string
 	coords   []int64
+	encoded  string
 	name     string
 	owner    string
 	comment  string
@@ -56,6 +57,7 @@ func NewRleFile(fileName string) (*RLE, error) {
 			}
 		}
 	}
+	rle.encoded = sb.String()
 	rle.decoded, rle.coords = rle.rleDecodeString(sb.String())
 	if len(rle.coords) == 0 {
 		rle.minX = 0
@@ -148,13 +150,18 @@ func (rle *RLE) rleDecodeString(rleStr string) (string, []int64) {
 	return sb.String(), coords
 }
 
+func (rle *RLE) Encode() string {
+	return "e"
+}
+
 func (rle *RLE) String() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Owner  :%s\n", rle.owner))
 	sb.WriteString(fmt.Sprintf("Name   :%s\n", rle.name))
 	sb.WriteString(fmt.Sprintf("File   :%s\n", rle.fileName))
 	sb.WriteString(fmt.Sprintf("Comment:%s\n", rle.comment))
-	sb.WriteString(fmt.Sprintf("Cells  :%d ", len(rle.coords)/2))
+	sb.WriteString(fmt.Sprintf("Encoded:%s\n", rle.encoded))
+	sb.WriteString(fmt.Sprintf("Cells  :%d\n", len(rle.coords)/2))
 
 	for i := 0; i < len(rle.coords); i = i + 2 {
 		sb.WriteString(fmt.Sprintf("%3d, %3d ", rle.coords[i], rle.coords[i+1]))
