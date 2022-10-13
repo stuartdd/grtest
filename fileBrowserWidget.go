@@ -25,8 +25,6 @@ type FileBrowserWidget struct {
 	textStyle         *fyne.TextStyle
 	textSize          float32
 	currentPath       string
-	onSelectedEvent   func(string, string) error
-	onFileFoundEvent  func(fs.DirEntry, string, FileBrowserLineType) string
 	err               error
 	saveLabel         *widget.Label
 	saveEntry         *widget.Entry
@@ -34,7 +32,10 @@ type FileBrowserWidget struct {
 	saveCommit        *widget.Button
 	saveForm          *fyne.Container
 	saveError         *widget.Label
-	saveNotify        func(string, bool, error) error
+
+	onSelectedEvent  func(string, string) error
+	onFileFoundEvent func(fs.DirEntry, string, FileBrowserLineType) string
+	onSaveEvent      func(string, bool, error) error
 }
 
 var _ desktop.Mouseable = (*MoverWidget)(nil)
@@ -99,20 +100,13 @@ func NewFileBrowserWidget(cx, cy float64) *FileBrowserWidget {
 	return w
 }
 
-func (w *FileBrowserWidget) SaveFormHide() {
-	if w.saveForm != nil {
-		w.saveNotify = nil
-		w.saveForm.Hide()
-	}
-}
-
 func (w *FileBrowserWidget) saveActionNotify(save bool, err error) {
-	if w.saveNotify != nil {
+	if w.onSaveEvent != nil {
 		ent := strings.TrimSpace(w.saveEntry.Text)
 		if ent == "" && save {
 			return
 		}
-		err := w.saveNotify(path.Join(w.currentPath, ent), save, err)
+		err := w.onSaveEvent(path.Join(w.currentPath, ent), save, err)
 		if err != nil {
 			w.saveEntry.Hide()
 			w.saveError.Text = fmt.Sprintf(" ERROR:%s", err.Error())
@@ -125,7 +119,7 @@ func (w *FileBrowserWidget) saveActionNotify(save bool, err error) {
 	}
 }
 func (w *FileBrowserWidget) saveDataChanged(s string) {
-	if w.saveNotify != nil {
+	if w.onSaveEvent != nil {
 		ent := strings.TrimSpace(w.saveEntry.Text)
 		if ent == "" {
 			return
@@ -149,17 +143,7 @@ func (mc *FileBrowserWidget) updateFileEntry(s string) {
 	mc.saveDataChanged(s)
 }
 
-func (w *FileBrowserWidget) SaveFormShow(f func(string, bool, error) error) {
-	if w.saveForm != nil {
-		w.saveNotify = f
-		w.saveEntry.OnSubmitted = func(s string) {
-			w.saveActionNotify(true, nil)
-		}
-		w.saveForm.Show()
-	}
-}
-
-func (w *FileBrowserWidget) InputForm(prompt string) *fyne.Container {
+func (w *FileBrowserWidget) InputSaveForm(prompt string) *fyne.Container {
 	w.saveLabel = widget.NewLabelWithStyle(prompt, fyne.TextAlignCenter, FBW_TEXT_STYLE)
 	w.saveEntry = widget.NewEntry()
 	w.saveEntry.TextStyle = FBW_TEXT_STYLE
@@ -179,7 +163,6 @@ func (w *FileBrowserWidget) InputForm(prompt string) *fyne.Container {
 	w.saveEntry.OnChanged = w.saveDataChanged
 	w.saveError.Hide()
 	w.saveForm = container.New(NewFixedWHLayout(100, 40), w.saveLabel, w.saveError, w.saveEntry, w.saveCancel, w.saveCommit)
-	w.saveForm.Hide()
 	return w.saveForm
 }
 
@@ -285,6 +268,13 @@ func (mc *FileBrowserWidget) SetOnSelectedEvent(f func(string, string) error) {
 	mc.onSelectedEvent = f
 }
 
+func (w *FileBrowserWidget) SetOnSaveEvent(f func(string, bool, error) error) {
+	w.onSaveEvent = f
+	w.saveEntry.OnSubmitted = func(s string) {
+		w.saveActionNotify(true, nil)
+	}
+}
+
 func (mc *FileBrowserWidget) Tapped(me *fyne.PointEvent) {
 	if mc.onSelectedEvent != nil {
 		d := me.AbsolutePosition.X - me.Position.X
@@ -310,9 +300,14 @@ func (mc *FileBrowserWidget) DoubleTapped(me *fyne.PointEvent) {
 			case FB_DIR:
 				go fbWidget.SetPath(fbwl.filePath)
 			case FB_FILE:
-				err := mc.onSelectedEvent(fbwl.filePath, mc.currentPath)
-				if err == nil {
-					mc.Hide()
+				if mc.saveForm != nil {
+					_, f := path.Split(fbwl.filePath)
+					mc.updateFileEntry(f)
+				} else {
+					err := mc.onSelectedEvent(fbwl.filePath, mc.currentPath)
+					if err == nil {
+						mc.Hide()
+					}
 				}
 			}
 		}

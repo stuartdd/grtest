@@ -30,26 +30,27 @@ var (
 	lifeGenStopped  bool
 	selectedCellsXY []int64
 
-	dots         []*canvas.Circle = make([]*canvas.Circle, 0)
-	dotsPos      int              = 0
-	gridSize     int64            = 6
-	xOffset      int64            = 0
-	yOffset      int64            = 0
-	currentDelay int64            = 100
-	currentWd    string
-	stopButton   *widget.Button
-	startButton  *widget.Button
-	stepButton   *widget.Button
-	deleteButton *widget.Button
-	saveButton   *widget.Button
-	clearButton  *widget.Button
-	fasterButton *widget.Button
-	slowerButton *widget.Button
-	timeText     = widget.NewLabel("")
-	targetDot    *canvas.Circle
-	targetRect   *canvas.Rectangle
-	rleFile      *RLE
-	rleError     error
+	dots          []*canvas.Circle = make([]*canvas.Circle, 0)
+	dotsPos       int              = 0
+	gridSize      int64            = 6
+	xOffset       int64            = 0
+	yOffset       int64            = 0
+	currentDelay  int64            = 100
+	currentWd     string
+	stopButton    *widget.Button
+	startButton   *widget.Button
+	stepButton    *widget.Button
+	deleteButton  *widget.Button
+	saveButton    *widget.Button
+	clearButton   *widget.Button
+	fasterButton  *widget.Button
+	slowerButton  *widget.Button
+	saveContainer *fyne.Container
+	timeText      = widget.NewLabel("")
+	targetDot     *canvas.Circle
+	targetRect    *canvas.Rectangle
+	rleFile       *RLE
+	rleError      error
 
 	FC_EMPTY  = color.RGBA{255, 0, 0, 255}   // Cell selector over an empty cell
 	FC_ADDED  = color.RGBA{0, 255, 0, 255}   // Cell just added
@@ -245,6 +246,7 @@ func POCLifeFileZero() {
 func POCLifeFile(cellPosX, cellPosY int64, clearCells bool) {
 	if fbWidget.Visible() {
 		fbWidget.Hide()
+		saveContainer.Hide()
 	} else {
 		POCLifeStop()
 		fbWidget.SetPath(currentWd)
@@ -300,6 +302,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, moverController 
 		return ""
 	})
 	topC := container.NewHBox()
+	saveContainer = container.NewVBox()
 	topV := container.NewVBox()
 	botC := container.NewPadded()
 	startButton = widget.NewButton("Start (F1)", func() {
@@ -321,13 +324,16 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, moverController 
 	})
 	saveButton = widget.NewButton("Save", func() {
 		if len(selectedCellsXY) > 0 {
-			fbWidget.SaveFormShow(func(s string, save bool, err error) error {
-				fmt.Printf("SAVE %t %s\n", save, s)
-				fbWidget.SaveFormHide()
+			fbWidget.SetOnSaveEvent(func(s string, save bool, err error) error {
+				if save {
+					fmt.Printf("SAVE %t %s\n", save, s)
+				}
 				fbWidget.Hide()
+				saveContainer.Hide()
 				return err
 			})
 			POCLifeFileZero()
+			saveContainer.Show()
 		}
 	})
 	fasterButton = widget.NewButton("F", func() {
@@ -438,7 +444,9 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, moverController 
 	moverWidget.SetFileBrowserWidget(fbWidget)
 
 	topV.Add(topC)
-	topV.Add(fbWidget.InputForm("Save Selected Cells to a RLE File"))
+	saveContainer.Add(fbWidget.InputSaveForm("Save Selected Cells to a RLE File"))
+	saveContainer.Hide()
+	topV.Add(saveContainer)
 	return container.NewBorder(topV, botC, nil, nil, moverWidget)
 }
 
