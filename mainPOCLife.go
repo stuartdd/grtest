@@ -30,27 +30,29 @@ var (
 	lifeGenStopped  bool
 	selectedCellsXY []int64
 
-	dots          []*canvas.Circle = make([]*canvas.Circle, 0)
-	dotsPos       int              = 0
-	gridSize      int64            = 6
-	xOffset       int64            = 0
-	yOffset       int64            = 0
-	currentDelay  int64            = 100
-	currentWd     string
-	stopButton    *widget.Button
-	startButton   *widget.Button
-	stepButton    *widget.Button
-	deleteButton  *widget.Button
-	saveButton    *widget.Button
-	clearButton   *widget.Button
-	fasterButton  *widget.Button
-	slowerButton  *widget.Button
-	saveContainer *fyne.Container
-	timeText      = widget.NewLabel("")
-	targetDot     *canvas.Circle
-	targetRect    *canvas.Rectangle
-	rleFile       *RLE
-	rleError      error
+	dots             []*canvas.Circle = make([]*canvas.Circle, 0)
+	dotsPos          int              = 0
+	gridSize         int64            = 6
+	xOffset          int64            = 0
+	yOffset          int64            = 0
+	currentDelay     int64            = 100
+	currentWd        string
+	stopButton       *widget.Button
+	startButton      *widget.Button
+	stepButton       *widget.Button
+	deleteButton     *widget.Button
+	saveButton       *widget.Button
+	clearButton      *widget.Button
+	fasterButton     *widget.Button
+	slowerButton     *widget.Button
+	saveContainer    *fyne.Container
+	ownerEntry       = widget.NewEntry()
+	descriptionEntry = widget.NewEntry()
+	timeText         = widget.NewLabel("")
+	targetDot        *canvas.Circle
+	targetRect       *canvas.Rectangle
+	rleFile          *RLE
+	rleError         error
 
 	FC_EMPTY  = color.RGBA{255, 0, 0, 255}   // Cell selector over an empty cell
 	FC_ADDED  = color.RGBA{0, 255, 0, 255}   // Cell just added
@@ -239,10 +241,38 @@ func POCLifeRunFor(n int) {
 	saveButton.Hide()
 }
 
-func POCLifeFileZero() {
+/*
+Call if Saving cells in selectedCellsXY
+*/
+func POCLifeFileSave() {
+	if len(selectedCellsXY) > 0 {
+		POCLifeStop()
+		fbWidget.SetOnSelectedEvent(nil)
+		fbWidget.SetOnSaveEvent(func(path string, save bool, err error) error {
+			if save {
+				enc, w, h := RLEEncodeCoords(selectedCellsXY)
+				fmt.Printf("SAVE: %s\nOwner: %s\nDesc: %s\nWidth: %d\nHeight: %d\nEnc: %s", path, ownerEntry.Text, descriptionEntry.Text, w, h, enc)
+			}
+			fbWidget.Hide()
+			saveContainer.Hide()
+			return nil
+		})
+		fbWidget.SetPath(currentWd)
+		fbWidget.Show()
+		saveContainer.Show()
+	}
+}
+
+/*
+Call if loading RLE at Offset and clearing the existing cells first
+*/
+func POCLifeFileLoad() {
 	POCLifeFile(xOffset, yOffset, true)
 }
 
+/*
+Call if loading RLE at a position an optionally clearing the existing cells first
+*/
 func POCLifeFile(cellPosX, cellPosY int64, clearCells bool) {
 	if fbWidget.Visible() {
 		fbWidget.Hide()
@@ -323,19 +353,9 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, moverController 
 		}
 	})
 	saveButton = widget.NewButton("Save", func() {
-		if len(selectedCellsXY) > 0 {
-			fbWidget.SetOnSaveEvent(func(s string, save bool, err error) error {
-				if save {
-					fmt.Printf("SAVE %t %s\n", save, s)
-				}
-				fbWidget.Hide()
-				saveContainer.Hide()
-				return err
-			})
-			POCLifeFileZero()
-			saveContainer.Show()
-		}
+		POCLifeFileSave()
 	})
+
 	fasterButton = widget.NewButton("F", func() {
 		POCLifeSetFaster()
 	})
@@ -352,7 +372,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, moverController 
 		mainWindow.Close()
 	}))
 	topC.Add(lifeSeperator())
-	topC.Add(widget.NewButton("File", POCLifeFileZero))
+	topC.Add(widget.NewButton("File", POCLifeFileLoad))
 	topC.Add(widget.NewButton("Restart", func() {
 		POCLifeStop()
 		lifeGen.Reset()
@@ -445,6 +465,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, moverController 
 
 	topV.Add(topC)
 	saveContainer.Add(fbWidget.InputSaveForm("Save Selected Cells to a RLE File"))
+	saveContainer.Add(widget.NewForm(widget.NewFormItem("Name of Owner :", ownerEntry), widget.NewFormItem("Description :", descriptionEntry)))
 	saveContainer.Hide()
 	topV.Add(saveContainer)
 	return container.NewBorder(topV, botC, nil, nil, moverWidget)

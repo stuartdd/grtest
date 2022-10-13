@@ -17,8 +17,15 @@ func TestFileEncode(t *testing.T) {
 	if err != nil {
 		t.Errorf("RLE File load failed. %e", err)
 	}
-	if rle.encoded != rle.Encode() {
-		t.Errorf("RLE File Encode failed. \n%s\n%s", rle.encoded, rle.Encode())
+	enc, w, h := rle.Encode()
+	if rle.encoded != enc {
+		t.Errorf("RLE File Encode failed. \n%s\n%s", rle.encoded, enc)
+	}
+	if w != 12 {
+		t.Errorf("RLE File Encode failed. Expected width %d Actual Width %d", 12, w)
+	}
+	if h != 11 {
+		t.Errorf("RLE File Encode failed. Expected height %d Actual Width %d", 11, h)
 	}
 
 }

@@ -185,7 +185,7 @@ func (w *FileBrowserWidget) SetParentPath() {
 	}
 }
 
-func (w *FileBrowserWidget) SetPath(newPath string) {
+func (mc *FileBrowserWidget) SetPath(newPath string) {
 	if newPath == "" {
 		return
 	}
@@ -194,21 +194,21 @@ func (w *FileBrowserWidget) SetPath(newPath string) {
 	coDir := make([]fyne.CanvasObject, 0)
 	_, err := PathToParentPath(newPath)
 	if err == nil && newPath != "/" {
-		fbe := NewFileBrowserWidgetLine(".. (up to parent directory)", "..", FB_PARENT, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		fbe := NewFileBrowserWidgetLine(".. (up to parent directory)", "..", FB_PARENT, *mc.textStyle, mc.textSize, line, 2, mc.size.Width)
 		coDir = append(coDir, fbe)
 		line++
 	}
 	files, err := os.ReadDir(newPath)
 	if err != nil {
-		fbe := NewFileBrowserWidgetLine(err.Error(), "", FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		fbe := NewFileBrowserWidgetLine(err.Error(), "", FB_ERR, *mc.textStyle, mc.textSize, line, 2, mc.size.Width)
 		coDir = append(coDir, fbe)
-		w.objects = coDir
+		mc.objects = coDir
 		return
 	}
 	if len(files) == 0 {
-		fbe := NewFileBrowserWidgetLine("No Files Found", "", FB_ERR, *w.textStyle, w.textSize, line, 2, w.size.Width)
+		fbe := NewFileBrowserWidgetLine("No Files Found", "", FB_ERR, *mc.textStyle, mc.textSize, line, 2, mc.size.Width)
 		coDir = append(coDir, fbe)
-		w.objects = coDir
+		mc.objects = coDir
 		return
 	}
 	for _, info := range files {
@@ -217,11 +217,11 @@ func (w *FileBrowserWidget) SetPath(newPath string) {
 			typ = FB_DIR
 		}
 		n := info.Name()
-		if w.onFileFoundEvent != nil {
-			n = w.onFileFoundEvent(info, newPath, typ)
+		if mc.onFileFoundEvent != nil {
+			n = mc.onFileFoundEvent(info, newPath, typ)
 		}
 		if n != "" {
-			fbe := NewFileBrowserWidgetLine(n, path.Join(newPath, info.Name()), typ, *w.textStyle, w.textSize, line, 2, w.size.Width)
+			fbe := NewFileBrowserWidgetLine(n, path.Join(newPath, info.Name()), typ, *mc.textStyle, mc.textSize, line, 2, mc.size.Width)
 			if typ == FB_FILE {
 				coFile = append(coFile, fbe)
 			} else {
@@ -230,11 +230,11 @@ func (w *FileBrowserWidget) SetPath(newPath string) {
 			line++
 		}
 	}
-	w.currentPath = newPath
-	if w.saveForm != nil {
-		w.saveDataChanged(w.saveEntry.Text)
+	mc.currentPath = newPath
+	if mc.saveForm != nil {
+		mc.saveDataChanged(mc.saveEntry.Text)
 	}
-	w.objects = append(coDir, coFile...)
+	mc.objects = append(coDir, coFile...)
 }
 
 func (mc *FileBrowserWidget) selectByMouse(x, y float32) *FileBrowserWidgetLine {
@@ -254,9 +254,9 @@ func (mc *FileBrowserWidget) selectByMouse(x, y float32) *FileBrowserWidgetLine 
 }
 
 // Create the renderer. This is called by the fyne application
-func (w *FileBrowserWidget) CreateRenderer() fyne.WidgetRenderer {
+func (mc *FileBrowserWidget) CreateRenderer() fyne.WidgetRenderer {
 	// Pass this widget to the renderer so it can access the text field
-	return newFileBrowserWidgetRenderer(w)
+	return newFileBrowserWidgetRenderer(mc)
 }
 
 // FileBrowserWidget MOUSE HANDLING ----------------------------------------------------------- MOUSE HANDLING
@@ -266,12 +266,14 @@ func (mc *FileBrowserWidget) SetOnFileFoundEvent(f func(fs.DirEntry, string, Fil
 
 func (mc *FileBrowserWidget) SetOnSelectedEvent(f func(string, string) error) {
 	mc.onSelectedEvent = f
+	mc.onSaveEvent = nil
 }
 
-func (w *FileBrowserWidget) SetOnSaveEvent(f func(string, bool, error) error) {
-	w.onSaveEvent = f
-	w.saveEntry.OnSubmitted = func(s string) {
-		w.saveActionNotify(true, nil)
+func (mc *FileBrowserWidget) SetOnSaveEvent(f func(string, bool, error) error) {
+	mc.onSaveEvent = f
+	mc.onSelectedEvent = nil
+	mc.saveEntry.OnSubmitted = func(s string) {
+		mc.saveActionNotify(true, nil)
 	}
 }
 
@@ -290,24 +292,22 @@ func (mc *FileBrowserWidget) Tapped(me *fyne.PointEvent) {
 }
 
 func (mc *FileBrowserWidget) DoubleTapped(me *fyne.PointEvent) {
-	if mc.onSelectedEvent != nil {
-		d := me.AbsolutePosition.X - me.Position.X
-		fbwl := mc.selectByMouse(me.Position.X-d, me.Position.Y-d)
-		if fbwl != nil {
-			switch fbwl.lineType {
-			case FB_PARENT:
-				go mc.SetParentPath()
-			case FB_DIR:
-				go fbWidget.SetPath(fbwl.filePath)
-			case FB_FILE:
-				if mc.saveForm != nil {
-					_, f := path.Split(fbwl.filePath)
-					mc.updateFileEntry(f)
-				} else {
-					err := mc.onSelectedEvent(fbwl.filePath, mc.currentPath)
-					if err == nil {
-						mc.Hide()
-					}
+	d := me.AbsolutePosition.X - me.Position.X
+	fbwl := mc.selectByMouse(me.Position.X-d, me.Position.Y-d)
+	if fbwl != nil {
+		switch fbwl.lineType {
+		case FB_PARENT:
+			go mc.SetParentPath()
+		case FB_DIR:
+			go fbWidget.SetPath(fbwl.filePath)
+		case FB_FILE:
+			if mc.onSelectedEvent == nil {
+				_, f := path.Split(fbwl.filePath)
+				mc.updateFileEntry(f)
+			} else {
+				err := mc.onSelectedEvent(fbwl.filePath, mc.currentPath)
+				if err == nil {
+					mc.Hide()
 				}
 			}
 		}

@@ -150,11 +150,11 @@ func (rle *RLE) rleDecodeString(rleStr string) (string, []int64) {
 	return sb.String(), coords
 }
 
-func (rle *RLE) Encode() string {
+func (rle *RLE) Encode() (string, int64, int64) {
 	return RLEEncodeCoords(rle.coords)
 }
 
-func RLEEncodeCoords(coords []int64) string {
+func RLEEncodeCoords(coords []int64) (string, int64, int64) {
 	co, w, h := POCNormaliseCoords(coords)
 	var enc strings.Builder
 	for y := 0; y < int(h); y++ {
@@ -185,7 +185,7 @@ func RLEEncodeCoords(coords []int64) string {
 			enc.WriteString("!")
 		}
 	}
-	return enc.String()
+	return enc.String(), w, h
 
 }
 
