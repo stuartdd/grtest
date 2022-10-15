@@ -1,9 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
+
+func TestFileSave(t *testing.T) {
+	rle, err := NewRleFile("testdata/rats.rle")
+	if err != nil {
+		t.Errorf("RLE File load failed. %e", err)
+	}
+
+	rleSave := NewRLESave("testdata/ab", rle.coords, "OWNER", "DESC")
+	s := rleSave.SaveFileContent()
+	fmt.Println(s)
+}
 
 func TestFileLoadPaths(t *testing.T) {
 	AssertFileLoad(t, "fileLoad_test.go", "is not a dir")
@@ -28,6 +40,13 @@ func TestFileEncode(t *testing.T) {
 		t.Errorf("RLE File Encode failed. Expected height %d Actual Width %d", 11, h)
 	}
 
+	saveRle := NewRLESave("RLESave", rle.coords, "owner", "desc")
+	if rle.decoded != saveRle.decoded {
+		t.Errorf("RLE File Encode failed. Decoded expected \n%s Actual \n%s", rle.decoded, saveRle.decoded)
+	}
+	if rle.encoded != saveRle.encoded {
+		t.Errorf("RLE File Encode failed. Encoded expected \n%s Actual \n%s", rle.encoded, saveRle.encoded)
+	}
 }
 
 func AssertFileLoad(t *testing.T, path, exp string) {

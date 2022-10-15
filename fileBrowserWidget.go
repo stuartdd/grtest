@@ -46,20 +46,20 @@ var _ fyne.Widget = (*FileBrowserWidget)(nil)
 var _ fyne.CanvasObject = (*FileBrowserWidget)(nil)
 var FBW_TEXT_STYLE = fyne.TextStyle{Bold: false, Italic: false, Monospace: true, Symbol: false, TabWidth: 2}
 
-type FixedWHLayout struct {
+type FixedEntryLayout struct {
 	w float32
 	h float32
 }
 
-func NewFixedWHLayout(w float32, h float32) *FixedWHLayout {
-	return &FixedWHLayout{w: w, h: h}
+func NewEntryLayout(w float32, h float32) *FixedEntryLayout {
+	return &FixedEntryLayout{w: w, h: h}
 }
 
-func (d *FixedWHLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+func (d *FixedEntryLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(d.w, d.h)
 }
 
-func (d *FixedWHLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size) {
+func (d *FixedEntryLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size) {
 	var wid float32 = 0
 	for _, o := range objects {
 		_, ok := o.(*widget.Entry)
@@ -82,7 +82,7 @@ func (d *FixedWHLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.S
 	}
 }
 
-var _ fyne.Layout = (*FixedWHLayout)(nil)
+var _ fyne.Layout = (*FixedEntryLayout)(nil)
 
 // Create a Widget and Extend (initialiase) the BaseWidget
 func NewFileBrowserWidget(cx, cy float64) *FileBrowserWidget {
@@ -162,7 +162,7 @@ func (w *FileBrowserWidget) InputSaveForm(prompt string) *fyne.Container {
 	}
 	w.saveEntry.OnChanged = w.saveDataChanged
 	w.saveError.Hide()
-	w.saveForm = container.New(NewFixedWHLayout(100, 40), w.saveLabel, w.saveError, w.saveEntry, w.saveCancel, w.saveCommit)
+	w.saveForm = container.New(NewEntryLayout(100, 40), w.saveLabel, w.saveError, w.saveEntry, w.saveCancel, w.saveCommit)
 	return w.saveForm
 }
 

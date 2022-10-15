@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -23,6 +25,43 @@ type RLE struct {
 	minY     int64
 	maxX     int64
 	maxY     int64
+}
+
+func NewRLESave(fn string, coords []int64, owner, comment string) *RLE {
+	rle := &RLE{fileName: fn, coords: coords, owner: owner, comment: comment}
+	fnlc := strings.ToLower(fn)
+	ext := path.Ext(fnlc)
+	if ext != ".rle" {
+		fn = fn[:len(fn)-len(ext)]
+		fn = fn + ".rle"
+	}
+	_, rle.name = path.Split(fn)
+	rle.fileName = fn
+	enc, _, _ := rle.Encode()
+	rle.encoded = enc
+	rle.decoded, _ = rle.rleDecodeString(rle.encoded)
+	return rle
+}
+
+func (rle *RLE) Save() error {
+	file, err := os.Create(rle.fileName)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = file.WriteString(rle.SaveFileContent())
+	return err
+}
+
+func (rle *RLE) SaveFileContent() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("#N %s\n", rle.name))
+	sb.WriteString(fmt.Sprintf("#O %s\n", rle.owner))
+	sb.WriteString(fmt.Sprintf("#C Created: %s\n", time.Now().Format("Monday January 2 2006")))
+	sb.WriteString(fmt.Sprintf("#C %s\n", rle.comment))
+	sb.WriteString("x = 0, y = 0, rule = B3/S23\n")
+	sb.WriteString(rle.encoded)
+	return sb.String()
 }
 
 func NewRleFile(fileName string) (*RLE, error) {
@@ -147,6 +186,8 @@ func (rle *RLE) rleDecodeString(rleStr string) (string, []int64) {
 			}
 		}
 	}
+	rle.maxX = x
+	rle.minY = y
 	return sb.String(), coords
 }
 
@@ -212,6 +253,7 @@ func (rle *RLE) String() string {
 	sb.WriteString(fmt.Sprintf("Comment:%s\n", rle.comment))
 	sb.WriteString(fmt.Sprintf("Encoded:%s\n", rle.encoded))
 	sb.WriteString(fmt.Sprintf("Cells  :%d\n", len(rle.coords)/2))
+	sb.WriteString(fmt.Sprintf("x,y    :%d, %d\n", rle.minX, rle.minY))
 
 	for i := 0; i < len(rle.coords); i = i + 2 {
 		sb.WriteString(fmt.Sprintf("%3d, %3d ", rle.coords[i], rle.coords[i+1]))

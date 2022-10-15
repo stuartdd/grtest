@@ -46,6 +46,7 @@ var (
 	fasterButton     *widget.Button
 	slowerButton     *widget.Button
 	saveContainer    *fyne.Container
+	errorContainer   *ErrorContainer
 	ownerEntry       = widget.NewEntry()
 	descriptionEntry = widget.NewEntry()
 	timeText         = widget.NewLabel("")
@@ -250,8 +251,12 @@ func POCLifeFileSave() {
 		fbWidget.SetOnSelectedEvent(nil)
 		fbWidget.SetOnSaveEvent(func(path string, save bool, err error) error {
 			if save {
-				enc, w, h := RLEEncodeCoords(selectedCellsXY)
-				fmt.Printf("SAVE: %s\nOwner: %s\nDesc: %s\nWidth: %d\nHeight: %d\nEnc: %s", path, ownerEntry.Text, descriptionEntry.Text, w, h, enc)
+				rle := NewRLESave(path, selectedCellsXY, ownerEntry.Text, descriptionEntry.Text)
+				err := rle.Save()
+				if err != nil {
+					errorContainer.SetErrorString(err.Error())
+					return nil
+				}
 			}
 			fbWidget.Hide()
 			saveContainer.Hide()
@@ -284,7 +289,8 @@ func POCLifeFile(cellPosX, cellPosY int64, clearCells bool) {
 			POCLifeStop()
 			rleFile, rleError = NewRleFile(fil)
 			if rleError != nil {
-				panic(rleError)
+				errorContainer.SetErrorString(rleError.Error())
+				return rleError
 			}
 			currentWd = path
 			if clearCells {
@@ -333,6 +339,8 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, moverController 
 	})
 	topC := container.NewHBox()
 	saveContainer = container.NewVBox()
+	errorContainer = NewErrorContainer("Error:", "", "OK", nil)
+
 	topV := container.NewVBox()
 	botC := container.NewPadded()
 	startButton = widget.NewButton("Start (F1)", func() {
@@ -468,6 +476,7 @@ func MainPOCLife(mainWindow fyne.Window, width, height float64, moverController 
 	saveContainer.Add(widget.NewForm(widget.NewFormItem("Name of Owner :", ownerEntry), widget.NewFormItem("Description :", descriptionEntry)))
 	saveContainer.Hide()
 	topV.Add(saveContainer)
+	topV.Add(errorContainer.container)
 	return container.NewBorder(topV, botC, nil, nil, moverWidget)
 }
 
